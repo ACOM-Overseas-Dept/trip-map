@@ -159,6 +159,7 @@ header{grid-area:hdr;background:var(--panel);border-bottom:1px solid var(--line)
 .iacts{display:flex;gap:6px;flex-wrap:wrap}
 .iacts a,.iacts button{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 10px;font-size:13px;font-weight:600;color:var(--accent);text-decoration:none;min-height:36px}
 .iacts .main{background:var(--accent);border-color:var(--accent);color:#fff}
+.iacts .grab{background:#00b14f;border-color:#00b14f;color:#fff}
 .mOnly{display:none}
 .reorderBar{display:none}
 
@@ -819,6 +820,7 @@ function initMap(){
       const id = b.dataset.id;
       if (b.dataset.act === 'edit') openItem(id);
       if (b.dataset.act === 'route') openRoute(id);
+      if (b.dataset.act === 'copy') copyAddr(byId(id));
     }));
   });
 }
@@ -829,6 +831,32 @@ function pinHtml(it, badge, sel){
 }
 function pinIcon(it, badge, sel){
   return L.divIcon({ className:'pinw', html:pinHtml(it, badge, sel), iconSize:[30,38], iconAnchor:[15,38], popupAnchor:[0,-36] });
+}
+/* Grab: unofficial booking deep link (drop-off only → pick-up = current location) */
+function grabUrl(it){
+  const q = new URLSearchParams({
+    screenType:'BOOKING',
+    dropOffLatitude:String(it.lat), dropOffLongitude:String(it.lng),
+    dropOffAddress:it.addr || it.name || '', dropOffKeywords:it.name || it.label || ''
+  }).toString().replace(/\+/g, '%20');
+  if (/Android/i.test(navigator.userAgent)) return `intent://open?${q}#Intent;scheme=grab;package=com.grabtaxi.passenger;end`;
+  return `grab://open?${q}`;
+}
+function addrText(it){
+  const name = (it.name || '').trim(), addr = (it.addr || '').trim();
+  if (!addr) return name;
+  return name && !addr.includes(name) ? `${name}, ${addr}` : addr;
+}
+async function copyAddr(it){
+  const text = addrText(it);
+  try { await navigator.clipboard.writeText(text); toast('コピーしました：' + text, 3200); }
+  catch(e) {
+    const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+    let ok = false; try { ok = document.execCommand('copy'); } catch(_) {}
+    ta.remove();
+    toast(ok ? 'コピーしました：' + text : 'コピーできませんでした：' + text, 4000);
+  }
 }
 function gmapUrl(it){
   if (it.gurl) return it.gurl;
@@ -844,6 +872,8 @@ function popupHtml(it, badge){
     ${it.addr ? `<div class="pp-s">${esc(it.addr)}</div>` : ''}</div></div>
     ${it.memo ? `<div class="pp-m">${esc(it.memo)}</div>` : ''}
     <div class="pp-a">
+      <a href="${esc(grabUrl(it))}" style="background:#00b14f;border-color:#00b14f;color:#fff">🚕 Grab目的地設定</a>
+      <button data-act="copy" data-id="${it.id}">📋 住所コピー</button>
       <a href="${esc(gmapUrl(it))}" target="_blank" rel="noopener">Googleマップ</a>
       <a href="${esc(dirUrl)}" target="_blank" rel="noopener">現在地から経路</a>
       <button data-act="route" data-id="${it.id}">ここから経路…</button>
@@ -931,11 +961,13 @@ function renderList(){
     let detail = '';
     if (sel) {
       const acts = it.lat != null
-        ? `<a class="main" href="https://www.google.com/maps/dir/?api=1&destination=${it.lat},${it.lng}&travelmode=driving" target="_blank" rel="noopener">🚗 ここへ行く</a>
+        ? `<a class="grab" href="${esc(grabUrl(it))}">🚕 Grab目的地設定</a>
+           <button data-iact="copy">📋 住所コピー</button>
+           <a class="main" href="https://www.google.com/maps/dir/?api=1&destination=${it.lat},${it.lng}&travelmode=driving" target="_blank" rel="noopener">🚗 ここへ行く</a>
            <a href="${esc(gmapUrl(it))}" target="_blank" rel="noopener">📍 Googleマップ</a>
            <button data-iact="route">🧭 ここから…</button>
            <button data-iact="edit">✎ 編集</button>`
-        : `<button class="main" data-iact="edit">📍 位置を設定</button>`;
+        : `<button class="main" data-iact="edit">📍 位置を設定</button>${it.addr || it.name ? '<button data-iact="copy">📋 住所コピー</button>' : ''}`;
       detail = `<div class="idetail">${it.addr ? `<div class="addr">${esc(it.addr)}</div>` : ''}<div class="iacts">${acts}</div></div>`;
     }
     li.innerHTML = `<span class="handle" title="ドラッグで並べ替え">⠿</span>
@@ -947,7 +979,12 @@ function renderList(){
     li.querySelector('.ibody').onclick = e => {
       if (document.body.classList.contains('reorder')) return;
       const act = e.target.closest('[data-iact]');
-      if (act) { e.stopPropagation(); if (act.dataset.iact === 'edit') openItem(it.id); else openRoute(it.id); return; }
+      if (act) {
+        e.stopPropagation();
+        const a = act.dataset.iact;
+        if (a === 'edit') openItem(it.id); else if (a === 'copy') copyAddr(it); else openRoute(it.id);
+        return;
+      }
       if (e.target.closest('.idetail')) return;
       if (it.lat == null) { openItem(it.id); return; }
       if (U.sel === it.id && isMobile()) { U.sel = null; renderList(); renderMarkers(); return; }
