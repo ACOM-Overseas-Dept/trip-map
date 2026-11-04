@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#ffffff">
+<title>出張マップ</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+if (!window.L) {
+  document.write('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">' +
+    '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>');
+}
+</script>
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --line:#e3e6ea; --text:#1f2328; --sub:#5f6772; --mute:#8b929c;
+  --accent:#1a73e8; --accent-weak:#e8f0fe; --danger:#d93025; --ok:#188038; --warn:#b06000;
+  --radius:10px; --hdr:56px;
+  --c-visit:#d93025; --c-hotel:#7b3fe4; --c-sight:#188038; --c-airport:#5f6368; --c-other:#1a73e8;
+  --font:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:var(--font);color:var(--text);background:var(--bg);font-size:14px;line-height:1.45;-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--accent)}
+.hidden{display:none!important}
+
+/* ---------- lock ---------- */
+#lock{position:fixed;inset:0;z-index:3000;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px}
+#lock .box{width:100%;max-width:360px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px 24px;box-shadow:0 8px 30px rgba(0,0,0,.06)}
+#lock h1{font-size:18px;margin:0 0 4px}
+#lock p{margin:0 0 18px;color:var(--sub);font-size:13px}
+#lock input[type=password]{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;font-size:16px}
+#lock label{display:flex;gap:8px;align-items:center;margin:12px 0 16px;color:var(--sub);font-size:13px}
+#lock .err{color:var(--danger);font-size:13px;min-height:18px;margin-top:10px}
+
+/* ---------- layout ---------- */
+#app{height:100vh;height:100dvh;display:grid;grid-template-rows:auto minmax(0,1fr);grid-template-columns:400px minmax(0,1fr);grid-template-areas:"hdr hdr" "list map"}
+header{grid-area:hdr;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:8px 12px;flex-wrap:wrap;padding-top:max(8px,env(safe-area-inset-top))}
+.title{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
+.seg{display:inline-flex;background:#eef0f3;border-radius:9px;padding:3px}
+.seg button{border:0;background:transparent;padding:6px 14px;border-radius:7px;font-weight:600;color:var(--sub);white-space:nowrap}
+.seg button.on{background:#fff;color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.hgap{flex:1}
+.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 12px;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--text)}
+.btn:hover{background:#f3f5f8}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.pri:hover{background:#1765cc}
+.btn.dng{color:var(--danger);border-color:#f3c7c3}
+.btn.sm{padding:5px 9px;font-size:13px}
+.btn.icon{padding:7px 10px}
+.btn:disabled{opacity:.5;cursor:default}
+.sync{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--sub);white-space:nowrap}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--mute);display:inline-block}
+.sync.ok i{background:var(--ok)} .sync.saving i{background:#f9ab00} .sync.err i{background:var(--danger)} .sync.local i{background:#f9ab00}
+
+#listPane{grid-area:list;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;position:relative}
+#mapPane{grid-area:map;position:relative;min-height:0}
+#map{position:absolute;inset:0;background:#e9eef2}
+.listTools{display:flex;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.listTools select{border:1px solid var(--line);border-radius:7px;padding:5px 6px;background:#fff;font-size:13px}
+.listTools .lbl{font-size:12px;color:var(--sub)}
+.cityMemo{padding:8px 12px;border-bottom:1px solid var(--line)}
+.cityMemo summary{cursor:pointer;color:var(--sub);font-size:13px;list-style:none}
+.cityMemo summary::-webkit-details-marker{display:none}
+.cityMemo summary b{color:var(--text);font-weight:600}
+.cityMemo textarea{width:100%;margin-top:6px;min-height:64px;border:1px solid var(--line);border-radius:8px;padding:8px;resize:vertical}
+#list{list-style:none;margin:0;padding:0 0 80px;overflow-y:auto;flex:1;min-height:0;-webkit-overflow-scrolling:touch}
+#list li{display:flex;align-items:flex-start;gap:8px;padding:9px 10px 9px 4px;border-bottom:1px solid #f0f2f4;background:#fff;position:relative}
+#list li.sel{background:var(--accent-weak)}
+#list li.dragging{opacity:.85;box-shadow:0 6px 18px rgba(0,0,0,.18);z-index:5;background:#fff}
+.handle{touch-action:none;cursor:grab;color:#b7bdc6;padding:4px 4px 4px 6px;font-size:18px;line-height:1;user-select:none;-webkit-user-select:none}
+.handle:active{cursor:grabbing}
+.ibody{flex:1;min-width:0;cursor:pointer}
+.iname{font-weight:700;font-size:14.5px;word-break:break-word}
+.isub{color:var(--sub);font-size:12.5px;word-break:break-word}
+.imemo{color:#3c4043;font-size:12.5px;background:#fffbe6;border-radius:6px;padding:3px 7px;margin-top:4px;white-space:pre-wrap;word-break:break-word}
+.chip{display:inline-block;font-size:11px;font-weight:700;border-radius:5px;padding:0 5px;margin-left:6px;vertical-align:1px}
+.chip.warn{background:#fef3e0;color:var(--warn)}
+.chip.na{background:#fde7e7;color:var(--danger)}
+.edit{border:0;background:transparent;color:var(--mute);font-size:17px;padding:4px 6px;border-radius:6px}
+.edit:hover{background:#f0f2f4;color:var(--text)}
+.empty{padding:28px 16px;color:var(--sub);text-align:center}
+
+/* badge (list) */
+.badge{flex:none;min-width:30px;height:30px;padding:0 4px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px;border-radius:50%;background:var(--c);letter-spacing:-.3px;margin-top:1px}
+.badge.hotel,.badge.airport{border-radius:8px}
+.badge.small{min-width:22px;height:22px;font-size:11px}
+
+/* pins (map) */
+.pinw{background:transparent;border:0}
+.pin{position:relative;width:30px;height:30px;border-radius:50%;background:var(--c);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.35);letter-spacing:-.4px;transition:transform .12s}
+.pin::after{content:"";position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);border:6px solid transparent;border-top:8px solid var(--c);border-bottom:0}
+.pin.hotel,.pin.airport{border-radius:8px}
+.pin.long{font-size:11px}
+.pin.sel{transform:scale(1.25);box-shadow:0 0 0 4px rgba(26,115,232,.35),0 2px 6px rgba(0,0,0,.4)}
+.pin.tmp{background:#fff;color:var(--accent);border:3px solid var(--accent)}
+.pin.tmp::after{border-top-color:var(--accent)}
+.leaflet-popup-content{margin:12px 14px;font-family:var(--font);font-size:13px;line-height:1.5}
+.pp-t{font-weight:700;font-size:14px}
+.pp-s{color:var(--sub);font-size:12px}
+.pp-m{background:#fffbe6;border-radius:6px;padding:3px 7px;margin-top:5px;white-space:pre-wrap}
+.pp-a{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.pp-a a,.pp-a button{font-size:12px;padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;text-decoration:none;color:var(--accent);font-weight:600}
+.mapBtns{position:absolute;right:10px;top:10px;z-index:500;display:flex;flex-direction:column;gap:6px}
+.mapBtns .btn{box-shadow:0 1px 4px rgba(0,0,0,.18);font-size:12px;padding:6px 9px}
+
+/* ---------- sheet ---------- */
+.sheet{position:fixed;z-index:1500;background:var(--panel);display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.18)}
+.sheet .sh-h{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.sheet .sh-h h2{font-size:15px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sheet .sh-b{overflow-y:auto;padding:12px 14px 18px;flex:1;-webkit-overflow-scrolling:touch}
+.sheet .sh-f{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--line);padding-bottom:max(10px,env(safe-area-inset-bottom))}
+.sheet .sh-f .grow{flex:1}
+.x{border:0;background:transparent;font-size:20px;color:var(--sub);padding:2px 8px;border-radius:6px}
+.fld{margin-bottom:12px}
+.fld>label{display:block;font-size:12px;font-weight:700;color:var(--sub);margin-bottom:4px}
+.fld input[type=text],.fld input[type=password],.fld input[type=search],.fld select,.fld textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff;font-size:15px}
+.fld textarea{min-height:70px;resize:vertical}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row>.grow{flex:1;min-width:0}
+.hint{font-size:12px;color:var(--sub);margin-top:4px}
+.box{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:12px;background:#fafbfc}
+.box h3{font-size:13px;margin:0 0 8px}
+.results{list-style:none;margin:8px 0 0;padding:0;max-height:220px;overflow:auto;border-radius:8px}
+.results li{padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;background:#fff;cursor:pointer}
+.results li:hover{border-color:var(--accent)}
+.results b{display:block;font-size:13.5px}
+.results span{font-size:12px;color:var(--sub)}
+.wp{list-style:none;margin:6px 0 0;padding:0}
+.wp li{display:flex;align-items:center;gap:8px;padding:5px 2px;border-bottom:1px dashed #edf0f2}
+.wp li label{display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;min-width:0}
+.wp .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.links{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.links{max-height:32vh;overflow-y:auto}
+.links a{justify-content:center;white-space:normal;text-align:center;line-height:1.35;word-break:break-word}
+.pos{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+
+/* peek mode (pick on map) */
+#peekBar{position:fixed;left:50%;transform:translateX(-50%);bottom:max(16px,env(safe-area-inset-bottom));z-index:1600;background:#202124;color:#fff;border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;box-shadow:0 6px 24px rgba(0,0,0,.3);max-width:calc(100% - 24px)}
+#peekBar span{font-size:13px}
+#peekBar .btn{padding:6px 12px}
+
+#toast{position:fixed;left:50%;top:70px;transform:translateX(-50%);z-index:4000;background:#202124;color:#fff;padding:9px 14px;border-radius:9px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw}
+#toast.on{opacity:1}
+
+/* ---------- desktop sheet: dock over list ---------- */
+@media (min-width:821px){
+  .sheet{left:0;top:var(--hdrh,56px);bottom:0;width:400px;border-right:1px solid var(--line);box-shadow:4px 0 20px rgba(0,0,0,.08)}
+}
+/* ---------- mobile ---------- */
+@media (max-width:820px){
+  #app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 40vh minmax(0,1fr);grid-template-areas:"hdr" "map" "list"}
+  #listPane{border-right:0;border-top:1px solid var(--line)}
+  header{gap:6px 6px;padding:8px 10px;min-width:0}
+  header::after{content:"";order:5;flex-basis:100%;height:0}
+  .title{order:1;flex:0 1 auto;min-width:0;max-width:none;font-size:14px}
+  .sync{order:1;font-size:11px}
+  .hgap{order:1;display:block}
+  #bPrint{order:2} #bSettings{order:3}
+  #cityTabs{order:10;flex:1;min-width:0;overflow-x:auto}
+  #cityTabs button{flex:1;padding:6px 8px}
+  #bRoute{order:11} #bAdd{order:12}
+  .pc{display:none}
+  .btn{padding:7px 10px}
+  .sheet{left:0;right:0;bottom:0;max-height:78vh;border-radius:16px 16px 0 0}
+  .sheet.tall{top:12vh}
+  .fld input,.fld select,.fld textarea{font-size:16px}
+  #list li{padding:10px 8px 10px 2px}
+}
+body{overflow-x:hidden}
+.fld,.row>*{min-width:0}
+select{max-width:100%}
+
+/* ---------- print ---------- */
+#printView{display:none}
+body.printing #app{display:block;height:auto}
+body.printing header,body.printing #listPane,body.printing .mapBtns,body.printing .sheet,body.printing #peekBar{display:none!important}
+body.printing{background:#fff}
+body.printing #printView{display:block;padding:16px 18px 0;max-width:820px;margin:0 auto}
+body.printing #mapPane{max-width:784px;margin:0 auto;height:420px;border:1px solid var(--line)}
+body.printing #printBottom{display:block}
+#printBottom{display:none;max-width:820px;margin:0 auto;padding:10px 18px 30px}
+#printBar{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line);padding:10px 0;margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#printBar .grow{flex:1}
+.pv-h1{font-size:18px;font-weight:800;margin:6px 0 2px}
+.pv-sub{color:var(--sub);font-size:12px}
+.pv-memo{white-space:pre-wrap;border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin-top:8px;font-size:12px}
+table.pt{width:100%;border-collapse:collapse;font-size:12px}
+table.pt th,table.pt td{border:1px solid #d5d9de;padding:5px 6px;vertical-align:top;text-align:left}
+table.pt th{background:#f1f3f5;font-weight:700}
+table.pt td.no{width:40px;text-align:center}
+table.pt .badge{min-width:24px;height:24px;font-size:11px}
+@media print{
+  @page{size:A4 portrait;margin:10mm}
+  #printBar{display:none!important}
+  body.printing #printView{padding:0}
+  body.printing #mapPane{height:105mm;border:1px solid #ccc;page-break-inside:avoid}
+  #printBottom{padding:6px 0 0}
+  .leaflet-control-zoom,.leaflet-control-attribution{display:none}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  table.pt tr{page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+<!-- ======= Lock ======= -->
+<div id="lock">
+  <form class="box" id="lockForm" autocomplete="off">
+    <h1 id="lockTitle">出張マップ</h1>
+    <p id="lockMsg">パスワードを入力してください</p>
+    <input type="password" id="pw" placeholder="パスワード" autocomplete="current-password">
+    <label><input type="checkbox" id="remember" checked> この端末で記憶する</label>
+    <button class="btn pri" style="width:100%;justify-content:center;padding:10px" id="unlockBtn">開く</button>
+    <div class="err" id="lockErr"></div>
+  </form>
+</div>
+
+<div id="app" class="hidden">
+  <header id="hdr">
+    <div class="title" id="tripTitle"></div>
+    <span class="sync" id="sync"><i></i><span>—</span></span>
+    <div class="hgap"></div>
+    <div class="seg" id="cityTabs"></div>
+    <button class="btn" id="bRoute" title="経路">🧭 経路</button>
+    <button class="btn pri" id="bAdd">＋ 追加</button>
+    <button class="btn icon" id="bPrint" title="印刷">🖨<span class="pc"> 印刷</span></button>
+    <button class="btn icon" id="bSettings" title="設定">⚙</button>
+  </header>
+
+  <section id="listPane">
+    <div class="listTools">
+      <span class="lbl">表示名</span>
+      <select id="dispSel">
+        <option value="label">訪問先名</option>
+        <option value="name">施設名</option>
+        <option value="both">両方</option>
+      </select>
+      <span class="lbl">並べ替え</span>
+      <select id="sortSel">
+        <option value="">⠿ドラッグ</option>
+        <option value="cat">区分順に整列</option>
+        <option value="name">名前順に整列</option>
+        <option value="reverse">逆順にする</option>
+      </select>
+    </div>
+    <details class="cityMemo" id="cityMemoBox">
+      <summary>📝 <b id="cityMemoTitle">都市メモ</b> <span id="cityMemoPrev"></span></summary>
+      <textarea id="cityMemo" placeholder="この都市全体のメモ（移動手段、集合場所、連絡先など）"></textarea>
+    </details>
+    <ul id="list"></ul>
+  </section>
+
+  <section id="mapPane">
+    <div id="map"></div>
+    <div class="mapBtns">
+      <button class="btn" id="bFit" title="全体表示">⤢ 全体</button>
+      <button class="btn" id="bTiles" title="地図の種類">🗺 標準</button>
+    </div>
+  </section>
+</div>
+
+<!-- ======= Print view (top part) ======= -->
+<div id="printView">
+  <div id="printBar">
+    <button class="btn" id="pvBack">← 戻る</button>
+    <label class="row" style="gap:6px;font-size:13px"><input type="checkbox" id="pvMemo" checked> メモを含める</label>
+    <span class="grow"></span>
+    <button class="btn pri" id="pvPrint">🖨 印刷する</button>
+  </div>
+  <div class="pv-h1" id="pvTitle"></div>
+  <div class="pv-sub" id="pvSub"></div>
+  <div class="pv-memo hidden" id="pvCityMemo"></div>
+  <div style="height:10px"></div>
+</div>
+<div id="printBottom"><table class="pt" id="pvTable"></table></div>
+
+<!-- ======= Sheets ======= -->
+<div class="sheet hidden" id="shRoute">
+  <div class="sh-h"><h2>🧭 経路をGoogleマップで開く</h2><button class="x" data-close>×</button></div>
+  <div class="sh-b">
+    <div class="fld"><label>移動手段</label>
+      <select id="rMode">
+        <option value="driving">車（タクシー・Grab）</option>
+        <option value="two-wheeler">バイク</option>
+        <option value="walking">徒歩</option>
+        <option value="transit">公共交通（経由地なし）</option>
+        <option value="bicycling">自転車</option>
+      </select>
+    </div>
+    <div class="row">
+      <div class="fld grow"><label>出発</label><select id="rFrom"></select></div>
+      <div class="fld grow"><label>到着</label><select id="rTo"></select></div>
+    </div>
+    <div class="fld">
+      <label>経由する地点（リストの順番）</label>
+      <div class="row"><button class="btn sm" id="rAll">すべて選択</button><button class="btn sm" id="rNone">すべて解除</button></div>
+      <ul class="wp" id="rWp"></ul>
+      <div class="hint" id="rHint"></div>
+    </div>
+    <div class="fld"><label>1つのリンクに入れる経由地の上限</label>
+      <select id="rChunk">
+        <option value="9">9か所（PC・Googleマップアプリ向け）</option>
+        <option value="3">3か所（スマホのブラウザで開く場合）</option>
+        <option value="0">区間ごとにリンクを分ける</option>
+      </select>
+    </div>
+  </div>
+  <div class="sh-f" style="display:block"><div class="links" id="rLinks" style="margin:0"></div></div>
+</div>
+
+<div class="sheet hidden tall" id="shItem">
+  <div class="sh-h"><h2 id="itTitle">スポットを追加</h2><button class="x" data-close>×</button></div>
+  <div class="sh-b">
+    <div class="box" id="itSearchBox">
+      <h3>🔎 場所を探す</h3>
+      <div class="row">
+        <input type="search" class="grow" id="qIn" placeholder="施設名・住所（例: Sunwah Tower）" style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:15px">
+        <button class="btn sm" id="qBtn">検索</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <a class="btn sm" id="qGoogle" href="#" target="_blank" rel="noopener">Googleマップで探す ↗</a>
+        <button class="btn sm" id="qPick">📍 地図をタップして指定</button>
+      </div>
+      <ul class="results" id="qRes"></ul>
+      <div class="fld" style="margin:10px 0 0">
+        <label>Googleマップの座標・URLを貼り付け</label>
+        <input type="text" id="pasteIn" placeholder="例: 10.7735, 106.7035 または https://www.google.com/maps/place/...">
+        <div class="hint">PC: Googleマップで地点を右クリックし、一番上の座標をクリックするとコピーできます。<br>スマホ: 地点を長押しし、検索欄に出る座標をコピーします。</div>
+      </div>
+    </div>
+
+    <div class="fld"><label>位置</label>
+      <div class="row">
+        <span class="pos grow" id="itPos">未設定</span>
+        <button class="btn sm" id="itPick">地図で指定・調整</button>
+      </div>
+      <div class="hint">地図上の青いピンはドラッグして微調整できます。</div>
+      <label class="row" style="gap:6px;margin-top:6px;font-weight:600;color:var(--text);font-size:13px"><input type="checkbox" id="itOk"> 位置を確認済み</label>
+    </div>
+    <div class="fld"><label>訪問先名（リストの表示名）</label><input type="text" id="itLabel" placeholder="例: SHBF、JETRO、MUFG ハノイ"></div>
+    <div class="fld"><label>施設名</label><input type="text" id="itName" placeholder="例: Gelex Tower"></div>
+    <div class="row">
+      <div class="fld grow"><label>区分（ピンの形と色）</label><select id="itCat"></select></div>
+      <div class="fld grow" id="itCityWrap"><label>都市</label><select id="itCity"></select></div>
+    </div>
+    <div class="fld"><label>住所</label><input type="text" id="itAddr"></div>
+    <div class="fld"><label>メモ</label><textarea id="itMemo" placeholder="面談相手、時間、持ち物など"></textarea></div>
+    <div class="row" id="itEditTools">
+      <button class="btn sm" id="itUp">▲ 前へ</button>
+      <button class="btn sm" id="itDown">▼ 後へ</button>
+      <a class="btn sm" id="itGmap" href="#" target="_blank" rel="noopener">Googleマップで開く ↗</a>
+      <span class="grow"></span>
+      <button class="btn sm dng" id="itDel">削除</button>
+    </div>
+  </div>
+  <div class="sh-f"><button class="btn" data-close>キャンセル</button><span class="grow"></span><button class="btn pri" id="itSave">保存</button></div>
+</div>
+
+<div class="sheet hidden tall" id="shSet">
+  <div class="sh-h"><h2>⚙ 設定</h2><button class="x" data-close>×</button></div>
+  <div class="sh-b">
+    <div class="box">
+      <h3>出張名</h3>
+      <div class="row"><input type="text" class="grow" id="sTitle" style="border:1px solid var(--line);border-radius:8px;padding:8px 10px"><button class="btn sm" id="sTitleSave">変更</button></div>
+    </div>
+
+    <div class="box">
+      <h3>🔄 PC・スマホの同期（GitHub）</h3>
+      <div class="hint" style="margin:0 0 8px">この端末から変更を保存するには、GitHubのアクセストークンが必要です（端末ごとに1回）。トークンはパスワードで暗号化して、この端末にだけ保存します。</div>
+      <div class="row">
+        <div class="fld grow"><label>オーナー</label><input type="text" id="gOwner"></div>
+        <div class="fld grow"><label>リポジトリ</label><input type="text" id="gRepo"></div>
+      </div>
+      <div class="row">
+        <div class="fld grow"><label>ブランチ</label><input type="text" id="gBranch"></div>
+        <div class="fld grow"><label>データファイル</label><input type="text" id="gPath"></div>
+      </div>
+      <div class="fld"><label>アクセストークン</label><input type="password" id="gToken" placeholder="github_pat_…（設定済みなら空欄のまま）" autocomplete="off"></div>
+      <div class="row">
+        <button class="btn sm pri" id="gSave">保存して接続テスト</button>
+        <button class="btn sm dng" id="gClear">この端末のトークンを削除</button>
+      </div>
+      <div class="hint" id="gStat"></div>
+      <div class="hint"><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">トークンを作成 ↗</a>（Fine-grained：対象はこのリポジトリのみ、権限は Contents: Read and write）</div>
+    </div>
+
+    <div class="box">
+      <h3>🔑 パスワード変更</h3>
+      <div class="fld"><input type="password" id="np1" placeholder="新しいパスワード（8文字以上）" autocomplete="new-password"></div>
+      <div class="fld"><input type="password" id="np2" placeholder="もう一度" autocomplete="new-password"></div>
+      <button class="btn sm" id="npSave">変更する</button>
+      <div class="hint">変更後、他の端末では新しいパスワードの入力が必要になります。</div>
+    </div>
+
+    <div class="box">
+      <h3>🏙 都市</h3>
+      <ul class="wp" id="cityList"></ul>
+      <div class="row" style="margin-top:8px">
+        <input type="text" class="grow" id="newCity" placeholder="都市名（例: プノンペン）" style="border:1px solid var(--line);border-radius:8px;padding:7px 9px">
+        <input type="text" class="grow" id="newCityPos" placeholder="中心座標（例: 11.556, 104.928）" style="border:1px solid var(--line);border-radius:8px;padding:7px 9px">
+        <button class="btn sm" id="newCityBtn">追加</button>
+      </div>
+    </div>
+
+    <div class="box">
+      <h3>💾 データ</h3>
+      <div class="row">
+        <button class="btn sm" id="dCopy">データをコピー（JSON）</button>
+        <button class="btn sm" id="dShowImp">貼り付けて復元…</button>
+      </div>
+      <div id="dImpBox" class="hidden" style="margin-top:8px">
+        <textarea id="dImp" style="width:100%;min-height:90px;border:1px solid var(--line);border-radius:8px;padding:8px;font-family:ui-monospace,monospace;font-size:12px" placeholder="コピーしたJSONを貼り付け"></textarea>
+        <button class="btn sm dng" id="dImpBtn">この内容で置き換える</button>
+      </div>
+    </div>
+
+    <div class="box">
+      <h3>🔒 ロック</h3>
+      <button class="btn sm" id="lockNow">この端末の記憶を消してロック</button>
+    </div>
+  </div>
+</div>
+
+<div id="peekBar" class="hidden"><span id="peekMsg">地図をタップして位置を指定</span><button class="btn pri" id="peekDone">完了</button></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* =========================================================
+   Helpers
+   ========================================================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LS = {
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch(e){} },
+  del(k){ try { localStorage.removeItem(k); } catch(e){} }
+};
+const uid = () => Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4);
+let toastT;
+function toast(msg, ms=2600){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'), ms); }
+const isMobile = () => window.matchMedia('(max-width:820px)').matches;
+const fmt = n => (Math.round(n*1e6)/1e6).toFixed(6);
+
+/* =========================================================
+   Crypto (PBKDF2-SHA256 → AES-GCM-256)
+   ========================================================= */
+const TE = new TextEncoder(), TD = new TextDecoder();
+const ITER = 200000;
+function b64(buf){ const u=new Uint8Array(buf); let s=''; for(let i=0;i<u.length;i+=0x8000) s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000)); return btoa(s); }
+function unb64(s){ return Uint8Array.from(atob(s), c=>c.charCodeAt(0)); }
+async function deriveKey(pw, saltB64, iter=ITER){
+  const base = await crypto.subtle.importKey('raw', TE.encode(pw), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2', salt:unb64(saltB64), iterations:iter, hash:'SHA-256'}, base, {name:'AES-GCM', length:256}, true, ['encrypt','decrypt']);
+}
+async function encObj(key, obj){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, TE.encode(JSON.stringify(obj)));
+  return { iv:b64(iv), ct:b64(ct) };
+}
+async function decObj(key, {iv, ct}){
+  const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv:unb64(iv)}, key, unb64(ct));
+  return JSON.parse(TD.decode(pt));
+}
+
+/* =========================================================
+   Categories
+   ========================================================= */
+const CATS = {
+  visit:   {name:'訪問先',     prefix:'',  color:'#d93025'},
+  hotel:   {name:'ホテル',     prefix:'H', color:'#7b3fe4'},
+  sight:   {name:'視察・食事', prefix:'S', color:'#188038'},
+  airport: {name:'空港・駅',   prefix:'✈', color:'#5f6368'},
+  other:   {name:'その他',     prefix:'★', color:'#1a73e8'}
+};
+const CAT_ORDER = ['hotel','airport','visit','sight','other'];
+
+/* =========================================================
+   State
+   ========================================================= */
+const S = { key:null, salt:null, iter:ITER, data:null, sha:null, remoteTs:'', dirty:false, token:null, saveT:null, pollT:null, busy:false };
+const U = { city:null, sel:null, editId:null, form:null, picking:false, tiles:'osm' };
+
+function normalize(d){
+  d = d || {};
+  d.v = 1;
+  d.title = d.title || '出張マップ';
+  d.cities = Array.isArray(d.cities) && d.cities.length ? d.cities : [{id:'c1', name:'都市', lat:21.0285, lng:105.854, zoom:13, memo:''}];
+  d.cities.forEach(c => { c.id = c.id || uid(); c.memo = c.memo || ''; c.zoom = c.zoom || 13; });
+  d.items = Array.isArray(d.items) ? d.items : [];
+  d.items.forEach(i => {
+    i.id = i.id || uid();
+    if (!CATS[i.cat]) i.cat = 'other';
+    if (!d.cities.find(c => c.id === i.city)) i.city = d.cities[0].id;
+    ['name','label','addr','memo','gurl'].forEach(k => i[k] = i[k] || '');
+    i.lat = (typeof i.lat === 'number' && isFinite(i.lat)) ? i.lat : null;
+    i.lng = (typeof i.lng === 'number' && isFinite(i.lng)) ? i.lng : null;
+    i.ok = !!i.ok;
+  });
+  d.settings = d.settings || {};
+  d.settings.display = d.settings.display || 'label';
+  d.updatedAt = d.updatedAt || new Date(0).toISOString();
+  return d;
+}
+
+/* =========================================================
+   GitHub storage
+   ========================================================= */
+function repoCfg(){
+  let c = {};
+  try { c = JSON.parse(LS.get('tm_repo') || '{}'); } catch(e){}
+  if (!c.owner) {
+    const h = location.hostname;
+    if (h.endsWith('.github.io')) {
+      c.owner = h.split('.')[0];
+      const seg = location.pathname.split('/').filter(Boolean)[0];
+      c.repo = (seg && !seg.includes('.')) ? seg : h;
+    }
+  }
+  c.branch = c.branch || 'main';
+  c.path = c.path || 'data.enc.json';
+  return c;
+}
+function apiUrl(c){ return `https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/contents/${c.path.split('/').map(encodeURIComponent).join('/')}`; }
+function ghHeaders(){ const h = {'Accept':'application/vnd.github+json'}; if (S.token) h.Authorization = 'Bearer ' + S.token; return h; }
+async function ghGet(){
+  const c = repoCfg();
+  if (!c.owner || !c.repo) throw Object.assign(new Error('リポジトリ未設定'), {code:'norepo'});
+  const r = await fetch(apiUrl(c) + '?ref=' + encodeURIComponent(c.branch) + '&_=' + Date.now(), {headers:ghHeaders(), cache:'no-store'});
+  if (r.status === 404) return null;
+  if (!r.ok) throw Object.assign(new Error('GitHub ' + r.status), {status:r.status});
+  const j = await r.json();
+  return { blob: JSON.parse(atob(String(j.content).replace(/\s/g,''))), sha: j.sha, src:'api' };
+}
+async function ghPut(blob, sha){
+  const c = repoCfg();
+  const body = { message: 'update trip map data', content: btoa(JSON.stringify(blob)), branch: c.branch };
+  if (sha) body.sha = sha;
+  const r = await fetch(apiUrl(c), { method:'PUT', headers: Object.assign({'Content-Type':'application/json'}, ghHeaders()), body: JSON.stringify(body) });
+  if (!r.ok) { let m=''; try { m = (await r.json()).message || ''; } catch(e){} throw Object.assign(new Error('GitHub ' + r.status + ' ' + m), {status:r.status}); }
+  const j = await r.json();
+  return j.content && j.content.sha;
+}
+async function fetchStatic(){
+  const r = await fetch(repoCfg().path + '?_=' + Date.now(), {cache:'no-store'});
+  if (!r.ok) throw new Error('static ' + r.status);
+  return { blob: await r.json(), sha:null, src:'static' };
+}
+function cachedBlob(){ try { const b = JSON.parse(LS.get('tm_blob') || 'null'); return b ? {blob:b, sha:null, src:'cache'} : null; } catch(e){ return null; } }
+async function loadBlob(){
+  const cands = [];
+  try { const g = await ghGet(); if (g) cands.push(g); } catch(e){}
+  if (!cands.length) { try { cands.push(await fetchStatic()); } catch(e){} }
+  const c = cachedBlob(); if (c) cands.push(c);
+  if (!cands.length) return null;
+  cands.sort((a,b) => String(b.blob.ts||'').localeCompare(String(a.blob.ts||'')));
+  const best = cands[0];
+  if (!best.sha) { const api = cands.find(x => x.sha); if (api) best.sha = api.sha; }
+  return best;
+}
+async function makeBlob(){
+  const e = await encObj(S.key, S.data);
+  return { v:1, ts:S.data.updatedAt, kdf:'PBKDF2-SHA256', iter:S.iter, salt:S.salt, iv:e.iv, ct:e.ct };
+}
+
+/* ---------- sync status ---------- */
+function setSync(state, text){
+  const el = $('#sync');
+  el.className = 'sync ' + state;
+  const t = { ok:'同期済み', saving:'保存中…', local:'この端末のみ保存', err:'同期エラー', ro:'閲覧のみ' }[state] || state;
+  el.querySelector('span').textContent = text || t;
+  el.title = state === 'local' ? '設定 → 同期 でトークンを登録すると、PC・スマホで自動同期されます' : (text || t);
+}
+
+/* ---------- save / pull ---------- */
+function changed(opts={}){
+  S.data.updatedAt = new Date().toISOString();
+  S.dirty = true;
+  if (!opts.noRender) renderAll();
+  setSync('saving');
+  clearTimeout(S.saveT);
+  S.saveT = setTimeout(persist, 1200);
+}
+async function persist(){
+  if (S.busy) { clearTimeout(S.saveT); S.saveT = setTimeout(persist, 800); return; }
+  S.busy = true;
+  try {
+    const blob = await makeBlob();
+    LS.set('tm_blob', JSON.stringify(blob));
+    if (!S.token) { S.dirty = false; setSync('local'); return; }
+    try {
+      S.sha = await ghPut(blob, S.sha);
+    } catch(e) {
+      if (e.status === 409 || e.status === 422) {
+        const g = await ghGet(); S.sha = g && g.sha;
+        S.sha = await ghPut(blob, S.sha);
+      } else throw e;
+    }
+    S.remoteTs = blob.ts; S.dirty = false; setSync('ok');
+  } catch(e) {
+    setSync('err', '同期エラー'); console.error(e);
+    toast('GitHubへの保存に失敗しました: ' + e.message, 4000);
+  } finally { S.busy = false; }
+}
+async function pull(silent){
+  if (!S.key || S.dirty || S.busy) return;
+  try {
+    const g = await ghGet(); if (!g) return;
+    S.sha = g.sha;
+    if (g.blob.salt !== S.salt) { relock('パスワードが変更されました。新しいパスワードを入力してください'); return; }
+    if (String(g.blob.ts||'') > String(S.remoteTs||'') && String(g.blob.ts||'') > String(S.data.updatedAt||'')) {
+      S.data = normalize(await decObj(S.key, g.blob));
+      S.remoteTs = g.blob.ts;
+      LS.set('tm_blob', JSON.stringify(g.blob));
+      renderAll();
+      if (!silent) toast('他の端末の変更を反映しました');
+    }
+    if (S.token) setSync('ok');
+  } catch(e) { /* offline etc. */ }
+}
+function startPolling(){
+  clearInterval(S.pollT);
+  if (S.token) S.pollT = setInterval(() => { if (document.visibilityState === 'visible') pull(); }, 45000);
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pull(); });
+
+/* =========================================================
+   Lock / unlock
+   ========================================================= */
+let REMOTE = null;
+async function boot(){
+  $('#lockMsg').textContent = 'データを読み込み中…';
+  $('#unlockBtn').disabled = true;
+  REMOTE = await loadBlob();
+  $('#unlockBtn').disabled = false;
+  if (!REMOTE) { $('#lockMsg').textContent = 'データファイル（data.enc.json）が見つかりません'; return; }
+  $('#lockMsg').textContent = 'パスワードを入力してください';
+  const rem = LS.get('tm_key');
+  if (rem) {
+    try {
+      const r = JSON.parse(rem);
+      if (r.salt === REMOTE.blob.salt) {
+        const key = await crypto.subtle.importKey('raw', unb64(r.k), 'AES-GCM', true, ['encrypt','decrypt']);
+        await openWith(key, REMOTE); return;
+      }
+    } catch(e) { LS.del('tm_key'); }
+  }
+  setTimeout(() => $('#pw').focus(), 50);
+}
+$('#lockForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const pw = $('#pw').value;
+  if (!pw) return;
+  $('#lockErr').textContent = ''; $('#unlockBtn').disabled = true; $('#unlockBtn').textContent = '確認中…';
+  try {
+    if (!REMOTE) REMOTE = await loadBlob();
+    const key = await deriveKey(pw, REMOTE.blob.salt, REMOTE.blob.iter || ITER);
+    await openWith(key, REMOTE);
+    if ($('#remember').checked) LS.set('tm_key', JSON.stringify({ salt:REMOTE.blob.salt, k:b64(await crypto.subtle.exportKey('raw', key)) }));
+    $('#pw').value = '';
+  } catch(err) {
+    $('#lockErr').textContent = 'パスワードが違います';
+  } finally { $('#unlockBtn').disabled = false; $('#unlockBtn').textContent = '開く'; }
+});
+async function openWith(key, got){
+  const data = await decObj(key, got.blob);  // throws if wrong
+  S.key = key; S.salt = got.blob.salt; S.iter = got.blob.iter || ITER;
+  S.data = normalize(data); S.sha = got.sha; S.remoteTs = got.blob.ts || ''; S.dirty = false;
+  LS.set('tm_blob', JSON.stringify(got.blob));
+  // token
+  S.token = null;
+  try {
+    const t = JSON.parse(LS.get('tm_tok') || 'null');
+    if (t && t.salt === S.salt) S.token = (await decObj(S.key, t)).token;
+  } catch(e) {}
+  $('#lock').classList.add('hidden');
+  $('#app').classList.remove('hidden');
+  startApp();
+  if (S.token) { setSync('ok'); if (!S.sha) pull(true); } else setSync('local');
+  startPolling();
+}
+function relock(msg){
+  S.key = null; S.data = null; S.token = null; clearInterval(S.pollT);
+  closeSheets();
+  $('#app').classList.add('hidden'); $('#lock').classList.remove('hidden');
+  LS.del('tm_key');
+  $('#lockErr').textContent = '';
+  $('#lockMsg').textContent = msg || 'パスワードを入力してください';
+  REMOTE = null; boot();
+}
+async function saveToken(token){
+  if (!token) { LS.del('tm_tok'); S.token = null; return; }
+  const e = await encObj(S.key, {token});
+  LS.set('tm_tok', JSON.stringify({ salt:S.salt, iv:e.iv, ct:e.ct }));
+  S.token = token;
+}
+
+/* =========================================================
+   Map
+   ========================================================= */
+let map, tileLayer, markers = {}, tmpMarker = null, routeLine = null, started = false;
+const TILES = {
+  osm:  { url:'https://tile.openstreetmap.org/{z}/{x}/{y}.png', opt:{maxZoom:19, attribution:'&copy; OpenStreetMap contributors'}, label:'🗺 標準' },
+  esri: { url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', opt:{maxZoom:19, attribution:'Tiles &copy; Esri'}, label:'🗺 英語表記' },
+  sat:  { url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', opt:{maxZoom:19, attribution:'Tiles &copy; Esri'}, label:'🛰 航空写真' }
+};
+const TILE_ORDER = ['osm','esri','sat'];
+function setTiles(k){
+  if (!TILES[k]) k = 'osm';
+  U.tiles = k; LS.set('tm_tiles', k);
+  if (tileLayer) map.removeLayer(tileLayer);
+  tileLayer = L.tileLayer(TILES[k].url, TILES[k].opt).addTo(map);
+  $('#bTiles').textContent = TILES[k].label;
+}
+function initMap(){
+  map = L.map('map', { zoomControl:true, tap:true });
+  setTiles(LS.get('tm_tiles') || 'osm');
+  map.on('click', e => { if (U.picking) setFormPos(e.latlng.lat, e.latlng.lng, true); });
+  map.on('popupopen', e => {
+    const el = e.popup.getElement();
+    el.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', ev => {
+      ev.preventDefault();
+      const id = b.dataset.id;
+      if (b.dataset.act === 'edit') openItem(id);
+      if (b.dataset.act === 'route') openRoute(id);
+    }));
+  });
+}
+function pinHtml(it, badge, sel){
+  const c = CATS[it.cat].color;
+  const long = String(badge).length >= 3 ? ' long' : '';
+  return `<div class="pin ${it.cat}${long}${sel ? ' sel' : ''}" style="--c:${c}">${esc(badge)}</div>`;
+}
+function pinIcon(it, badge, sel){
+  return L.divIcon({ className:'pinw', html:pinHtml(it, badge, sel), iconSize:[30,38], iconAnchor:[15,38], popupAnchor:[0,-36] });
+}
+function gmapUrl(it){
+  if (it.gurl) return it.gurl;
+  if (it.lat != null) return `https://www.google.com/maps/search/?api=1&query=${it.lat},${it.lng}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((it.name || it.label) + ' ' + (it.addr || ''))}`;
+}
+function popupHtml(it, badge){
+  const n = names(it);
+  const dirUrl = `https://www.google.com/maps/dir/?api=1&destination=${it.lat},${it.lng}&travelmode=driving`;
+  return `<div style="display:flex;gap:8px;align-items:flex-start">
+    <span class="badge small ${it.cat}" style="--c:${CATS[it.cat].color}">${esc(badge)}</span>
+    <div><div class="pp-t">${esc(n.main)}</div>${n.sub ? `<div class="pp-s">${esc(n.sub)}</div>` : ''}
+    ${it.addr ? `<div class="pp-s">${esc(it.addr)}</div>` : ''}</div></div>
+    ${it.memo ? `<div class="pp-m">${esc(it.memo)}</div>` : ''}
+    <div class="pp-a">
+      <a href="${esc(gmapUrl(it))}" target="_blank" rel="noopener">Googleマップ</a>
+      <a href="${esc(dirUrl)}" target="_blank" rel="noopener">現在地から経路</a>
+      <button data-act="route" data-id="${it.id}">ここから経路…</button>
+      <button data-act="edit" data-id="${it.id}">編集</button>
+    </div>`;
+}
+function renderMarkers(){
+  Object.values(markers).forEach(m => map.removeLayer(m));
+  markers = {};
+  const items = cityItems(), badges = badgeMap(items);
+  items.forEach(it => {
+    if (it.lat == null || it.id === U.editId) return;
+    const m = L.marker([it.lat, it.lng], { icon:pinIcon(it, badges[it.id], it.id === U.sel), title:names(it).main, riseOnHover:true });
+    m.bindPopup(() => popupHtml(it, badges[it.id]), { maxWidth:280 });
+    m.on('click', () => select(it.id, 'map'));
+    if (it.id === U.sel) m.setZIndexOffset(1000);
+    m.addTo(map);
+    markers[it.id] = m;
+  });
+}
+function fitCity(animate){
+  const pts = cityItems().filter(i => i.lat != null).map(i => [i.lat, i.lng]);
+  const c = curCity();
+  if (pts.length >= 2) map.fitBounds(L.latLngBounds(pts), { padding:[36,36], maxZoom:16, animate:!!animate });
+  else if (pts.length === 1) map.setView(pts[0], 15, {animate:!!animate});
+  else map.setView([c.lat, c.lng], c.zoom || 13, {animate:!!animate});
+}
+
+/* =========================================================
+   Data helpers
+   ========================================================= */
+const curCity = () => S.data.cities.find(c => c.id === U.city) || S.data.cities[0];
+const cityItems = (cid) => S.data.items.filter(i => i.city === (cid || U.city));
+const byId = id => S.data.items.find(i => i.id === id);
+function badgeMap(items){
+  const cnt = {}, out = {};
+  items.forEach(it => {
+    cnt[it.cat] = (cnt[it.cat] || 0) + 1;
+    const p = CATS[it.cat].prefix;
+    out[it.id] = (it.cat === 'airport' && items.filter(x => x.cat === 'airport').length === 1) ? '✈' : p + cnt[it.cat];
+  });
+  return out;
+}
+function names(it){
+  const d = S.data.settings.display, label = (it.label || '').trim(), name = (it.name || '').trim();
+  if (d === 'name') return { main: name || label || '(名称未設定)', sub: (label && label !== name) ? label : '' };
+  if (d === 'both') return { main: label && name && label !== name ? `${label}（${name}）` : (label || name || '(名称未設定)'), sub:'' };
+  return { main: label || name || '(名称未設定)', sub: (label && name && label !== name) ? name : '' };
+}
+
+/* =========================================================
+   Render
+   ========================================================= */
+function renderHeader(){
+  $('#tripTitle').textContent = S.data.title;
+  document.title = S.data.title + ' | 出張マップ';
+  const tabs = $('#cityTabs'); tabs.innerHTML = '';
+  S.data.cities.forEach(c => {
+    const b = document.createElement('button');
+    b.textContent = c.name + ` ${cityItems(c.id).length}`;
+    if (c.id === U.city) b.classList.add('on');
+    b.onclick = () => switchCity(c.id);
+    tabs.appendChild(b);
+  });
+  requestAnimationFrame(() => document.documentElement.style.setProperty('--hdrh', $('#hdr').offsetHeight + 'px'));
+}
+function renderList(){
+  const ul = $('#list'); ul.innerHTML = '';
+  const items = cityItems(), badges = badgeMap(items);
+  $('#dispSel').value = S.data.settings.display;
+  const c = curCity();
+  $('#cityMemoTitle').textContent = c.name + 'のメモ';
+  if (document.activeElement !== $('#cityMemo')) $('#cityMemo').value = c.memo || '';
+  $('#cityMemoPrev').textContent = c.memo ? '― ' + c.memo.split('\n')[0].slice(0, 24) : '';
+  if (!items.length) { ul.innerHTML = '<li class="empty" style="display:block">まだスポットがありません。「＋ 追加」から登録できます。</li>'; return; }
+  items.forEach(it => {
+    const n = names(it);
+    const li = document.createElement('li');
+    li.dataset.id = it.id;
+    if (it.id === U.sel) li.classList.add('sel');
+    const chip = it.lat == null ? '<span class="chip na">位置未設定</span>' : (!it.ok ? '<span class="chip warn">位置要確認</span>' : '');
+    li.innerHTML = `<span class="handle" title="ドラッグで並べ替え">⠿</span>
+      <span class="badge ${it.cat}" style="--c:${CATS[it.cat].color}">${esc(badges[it.id])}</span>
+      <div class="ibody"><div class="iname">${esc(n.main)}${chip}</div>
+        ${n.sub ? `<div class="isub">${esc(n.sub)}</div>` : ''}
+        ${it.memo ? `<div class="imemo">${esc(it.memo)}</div>` : ''}</div>
+      <button class="edit" title="編集">✎</button>`;
+    li.querySelector('.ibody').onclick = () => it.lat == null ? openItem(it.id) : select(it.id, 'list');
+    li.querySelector('.edit').onclick = () => openItem(it.id);
+    ul.appendChild(li);
+  });
+}
+function renderAll(){
+  if (!S.data) return;
+  if (!S.data.cities.find(c => c.id === U.city)) U.city = S.data.cities[0].id;
+  renderHeader(); renderList(); renderMarkers();
+  if (!$('#shRoute').classList.contains('hidden')) buildRoute();
+}
+function switchCity(id){
+  U.city = id; U.sel = null; LS.set('tm_city', id);
+  closeSheets(); renderAll(); fitCity(false);
+  $('#list').scrollTop = 0;
+}
+function select(id, from){
+  U.sel = id;
+  document.querySelectorAll('#list li').forEach(li => li.classList.toggle('sel', li.dataset.id === id));
+  renderMarkers();
+  const it = byId(id), m = markers[id];
+  if (from === 'list' && m) {
+    map.setView([it.lat, it.lng], Math.max(map.getZoom(), 15), {animate:true});
+    setTimeout(() => m.openPopup(), 250);
+  }
+  if (from === 'map') {
+    const li = document.querySelector(`#list li[data-id="${id}"]`);
+    if (li) li.scrollIntoView({block:'nearest', behavior:'smooth'});
+    if (m) m.openPopup();
+  }
+}
+
+/* ---------- drag & drop reorder ---------- */
+(function(){
+  const ul = document.getElementById('list');
+  ul.addEventListener('pointerdown', e => {
+    const h = e.target.closest('.handle'); if (!h) return;
+    e.preventDefault();
+    const li = h.closest('li'); li.classList.add('dragging');
+    const pid = e.pointerId;
+    let raf = null, lastY = e.clientY;
+    const scrollTick = () => {
+      const r = ul.getBoundingClientRect();
+      if (lastY < r.top + 40) ul.scrollTop -= 8; else if (lastY > r.bottom - 40) ul.scrollTop += 8;
+      raf = requestAnimationFrame(scrollTick);
+    };
+    raf = requestAnimationFrame(scrollTick);
+    const move = ev => {
+      if (ev.pointerId !== pid) return;
+      ev.preventDefault();
+      lastY = ev.clientY;
+      const sibs = [...ul.querySelectorAll('li:not(.dragging)')];
+      let before = null;
+      for (const s of sibs) { const r = s.getBoundingClientRect(); if (ev.clientY < r.top + r.height/2) { before = s; break; } }
+      if (before) { if (li.nextElementSibling !== before) ul.insertBefore(li, before); }
+      else if (ul.lastElementChild !== li) ul.appendChild(li);
+    };
+    const up = ev => {
+      if (ev && ev.pointerId !== pid) return;
+      cancelAnimationFrame(raf);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      li.classList.remove('dragging');
+      const ids = [...ul.querySelectorAll('li')].map(x => x.dataset.id).filter(Boolean);
+      const before = cityItems().map(i => i.id).join();
+      if (ids.join() !== before) reorderCity(ids);
+    };
+    window.addEventListener('pointermove', move, {passive:false});
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  });
+})();
+function reorderCity(ids){
+  const others = S.data.items.filter(i => i.city !== U.city);
+  const mine = ids.map(byId).filter(Boolean);
+  cityItems().forEach(i => { if (!ids.includes(i.id)) mine.push(i); });
+  S.data.items = others.concat(mine);
+  changed();
+}
+
+/* =========================================================
+   Sheets
+   ========================================================= */
+function openSheet(id){
+  ['#shRoute','#shItem','#shSet'].forEach(s => { if (s !== id) $(s).classList.add('hidden'); });
+  if (map) map.closePopup();
+  $(id).classList.remove('hidden');
+}
+function closeSheets(){
+  const wasItem = !$('#shItem').classList.contains('hidden');
+  ['#shRoute','#shItem','#shSet'].forEach(s => $(s).classList.add('hidden'));
+  endPick();
+  if (routeLine && map) { map.removeLayer(routeLine); routeLine = null; }
+  if (tmpMarker && map) { map.removeLayer(tmpMarker); tmpMarker = null; }
+  if (wasItem && U.editId) { U.editId = null; renderMarkers(); }
+  U.editId = null; U.form = null;
+}
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeSheets));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (document.body.classList.contains('printing')) exitPrint(); else closeSheets(); } });
+
+/* =========================================================
+   Item add / edit
+   ========================================================= */
+function fillCatSelect(){
+  $('#itCat').innerHTML = CAT_ORDER.map(k => `<option value="${k}">${CATS[k].prefix ? CATS[k].prefix + ' ' : ''}${CATS[k].name}</option>`).join('');
+}
+function openItem(id){
+  closeSheets();
+  const it = id ? byId(id) : null;
+  U.editId = id || null;
+  U.form = it ? { lat:it.lat, lng:it.lng } : { lat:null, lng:null };
+  $('#itTitle').textContent = it ? 'スポットを編集' : 'スポットを追加';
+  $('#itName').value = it ? it.name : '';
+  $('#itLabel').value = it ? it.label : '';
+  $('#itAddr').value = it ? it.addr : '';
+  $('#itMemo').value = it ? it.memo : '';
+  $('#itCat').value = it ? it.cat : 'visit';
+  $('#itOk').checked = it ? it.ok : true;
+  $('#itCity').innerHTML = S.data.cities.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  $('#itCity').value = it ? it.city : U.city;
+  $('#itCityWrap').classList.toggle('hidden', !it);
+  $('#itEditTools').classList.toggle('hidden', !it);
+  $('#itDel').textContent = '削除'; $('#itDel').dataset.armed = '';
+  $('#qIn').value = ''; $('#qRes').innerHTML = ''; $('#pasteIn').value = '';
+  $('#itSearchBox').open = true;
+  U.form.gurl = it ? it.gurl : '';
+  updateGoogleSearchLink();
+  if (it) { $('#itGmap').href = gmapUrl(it); renderMarkers(); }
+  showFormPos();
+  openSheet('#shItem');
+  if (it && it.lat != null) map.setView([it.lat, it.lng], Math.max(map.getZoom(), 16));
+  if (!it && !isMobile()) setTimeout(() => $('#qIn').focus(), 50);
+}
+function showFormPos(){
+  const f = U.form;
+  $('#itPos').textContent = f.lat == null ? '未設定' : `${fmt(f.lat)}, ${fmt(f.lng)}`;
+  if (tmpMarker) { map.removeLayer(tmpMarker); tmpMarker = null; }
+  if (f.lat != null) {
+    const fake = { cat:$('#itCat').value };
+    tmpMarker = L.marker([f.lat, f.lng], {
+      draggable:true, zIndexOffset:2000,
+      icon:L.divIcon({ className:'pinw', html:`<div class="pin tmp" style="--c:${CATS[fake.cat].color}">●</div>`, iconSize:[30,38], iconAnchor:[15,38] })
+    }).addTo(map);
+    tmpMarker.on('dragend', () => { const p = tmpMarker.getLatLng(); U.form.lat = p.lat; U.form.lng = p.lng; $('#itOk').checked = true; $('#itPos').textContent = `${fmt(p.lat)}, ${fmt(p.lng)}`; });
+  }
+}
+function setFormPos(lat, lng, pan){
+  U.form.lat = lat; U.form.lng = lng;
+  showFormPos();
+  if (pan) map.panTo([lat, lng]); else map.setView([lat, lng], Math.max(map.getZoom(), 16));
+}
+function updateGoogleSearchLink(){
+  const q = ($('#qIn').value || $('#itName').value || $('#itLabel').value || '').trim();
+  $('#qGoogle').href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent((q ? q + ' ' : '') + curCity().name.replace('ホーチミン','Ho Chi Minh City').replace('ハノイ','Hanoi'));
+}
+$('#qIn').addEventListener('input', updateGoogleSearchLink);
+$('#itName').addEventListener('input', updateGoogleSearchLink);
+$('#itCat').addEventListener('change', showFormPos);
+$('#qIn').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doSearch(); } });
+$('#qBtn').onclick = doSearch;
+
+async function doSearch(){
+  const q = $('#qIn').value.trim(); if (!q) return;
+  const ul = $('#qRes'); ul.innerHTML = '<li style="cursor:default">検索中…</li>';
+  const c = curCity();
+  let res = [];
+  try {
+    const vb = [c.lng-0.4, c.lat+0.4, c.lng+0.4, c.lat-0.4].join(',');
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&addressdetails=0&accept-language=ja,en&viewbox=${vb}&q=${encodeURIComponent(q)}`);
+    if (r.ok) res = (await r.json()).map(x => ({ name: x.name || x.display_name.split(',')[0], addr: x.display_name, lat:+x.lat, lng:+x.lon }));
+  } catch(e) {}
+  if (!res.length) {
+    try {
+      const r = await fetch(`https://photon.komoot.io/api/?limit=8&lat=${c.lat}&lon=${c.lng}&q=${encodeURIComponent(q)}`);
+      if (r.ok) res = (await r.json()).features.map(f => { const p = f.properties; return { name: p.name || p.street || q, addr: [p.housenumber, p.street, p.district, p.city, p.country].filter(Boolean).join(', '), lat:f.geometry.coordinates[1], lng:f.geometry.coordinates[0] }; });
+    } catch(e) {}
+  }
+  if (!res.length) { ul.innerHTML = '<li style="cursor:default">見つかりませんでした。「Googleマップで探す」で地点を探し、座標を貼り付けてください。</li>'; return; }
+  ul.innerHTML = '';
+  res.forEach(x => {
+    const li = document.createElement('li');
+    li.innerHTML = `<b>${esc(x.name)}</b><span>${esc(x.addr)}</span>`;
+    li.onclick = () => {
+      if (!$('#itName').value) $('#itName').value = x.name;
+      if (!$('#itAddr').value) $('#itAddr').value = x.addr;
+      $('#itOk').checked = false;
+      setFormPos(x.lat, x.lng);
+      ul.innerHTML = ''; toast('位置を設定しました。ピンの位置を確認してください');
+    };
+    ul.appendChild(li);
+  });
+}
+function parseLoc(t){
+  t = String(t || '').trim(); if (!t) return null;
+  if (/maps\.app\.goo\.gl|goo\.gl\/maps/.test(t)) return { short:true };
+  let m, lat, lng, name = '';
+  const nm = t.match(/\/place\/([^\/@?]+)/); if (nm) { try { name = decodeURIComponent(nm[1].replace(/\+/g, ' ')); } catch(e){} }
+  if ((m = t.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/))) { lat = +m[1]; lng = +m[2]; }
+  else if ((m = t.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/))) { lat = +m[1]; lng = +m[2]; }
+  else if ((m = t.match(/[?&](?:q|query|ll|destination|center)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/i))) { lat = +m[1]; lng = +m[2]; }
+  else if ((m = t.match(/(-?\d{1,2}\.\d{3,})\s*[,，、\s]\s*(-?\d{1,3}\.\d{3,})/))) { lat = +m[1]; lng = +m[2]; }
+  if (lat == null || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng, name, url: /^https?:\/\//.test(t) ? t : '' };
+}
+$('#pasteIn').addEventListener('input', () => {
+  const r = parseLoc($('#pasteIn').value);
+  if (!r) return;
+  if (r.short) { toast('短縮URL（maps.app.goo.gl）からは座標を読み取れません。座標をコピーして貼り付けてください', 4500); return; }
+  if (r.name && !$('#itName').value) $('#itName').value = r.name;
+  if (r.url) U.form.gurl = r.url;
+  $('#itOk').checked = true;
+  setFormPos(r.lat, r.lng);
+  toast('座標を読み取りました');
+});
+function startPick(msg){
+  U.picking = true;
+  $('#peekMsg').textContent = msg || '地図をタップして位置を指定（ピンはドラッグで微調整）';
+  $('#peekBar').classList.remove('hidden');
+  if (isMobile()) $('#shItem').classList.add('hidden');
+  map.getContainer().style.cursor = 'crosshair';
+}
+function endPick(){
+  U.picking = false;
+  $('#peekBar').classList.add('hidden');
+  if (map) map.getContainer().style.cursor = '';
+}
+$('#qPick').onclick = () => startPick();
+$('#itPick').onclick = () => startPick();
+$('#peekDone').onclick = () => { endPick(); if (U.form) { $('#shItem').classList.remove('hidden'); if (U.form.lat != null) $('#itOk').checked = true; } };
+
+$('#itSave').onclick = () => {
+  const name = $('#itName').value.trim(), label = $('#itLabel').value.trim();
+  if (!name && !label) { toast('訪問先名か施設名を入力してください'); return; }
+  const vals = { name, label, addr:$('#itAddr').value.trim(), memo:$('#itMemo').value.trim(), cat:$('#itCat').value, lat:U.form.lat, lng:U.form.lng, ok:$('#itOk').checked && U.form.lat != null, gurl:U.form.gurl || '' };
+  let it;
+  if (U.editId) {
+    it = byId(U.editId); Object.assign(it, vals);
+    const newCity = $('#itCity').value;
+    if (newCity !== it.city) { S.data.items = S.data.items.filter(x => x !== it); it.city = newCity; S.data.items.push(it); }
+  } else {
+    it = Object.assign({ id:uid(), city:U.city }, vals);
+    S.data.items.push(it);
+  }
+  const id = it.id;
+  closeSheets(); changed();
+  if (it.city === U.city && it.lat != null) select(id, 'list');
+  toast('保存しました');
+};
+$('#itDel').onclick = () => {
+  const b = $('#itDel');
+  if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'もう一度押すと削除'; setTimeout(() => { b.dataset.armed = ''; b.textContent = '削除'; }, 3000); return; }
+  S.data.items = S.data.items.filter(x => x.id !== U.editId);
+  closeSheets(); changed(); toast('削除しました');
+};
+function moveItem(delta){
+  const ids = cityItems().map(i => i.id), i = ids.indexOf(U.editId), j = i + delta;
+  if (i < 0 || j < 0 || j >= ids.length) return;
+  [ids[i], ids[j]] = [ids[j], ids[i]];
+  reorderCity(ids);
+  toast(delta < 0 ? '前へ移動しました' : '後へ移動しました', 1200);
+}
+$('#itUp').onclick = () => moveItem(-1);
+$('#itDown').onclick = () => moveItem(1);
+
+/* =========================================================
+   Route
+   ========================================================= */
+function routePoints(){ const items = cityItems(), b = badgeMap(items); return items.filter(i => i.lat != null).map(i => ({ it:i, badge:b[i.id], label:`${b[i.id]}  ${names(i).main}` })); }
+function openRoute(fromId){
+  closeSheets();
+  const pts = routePoints();
+  if (pts.length < 1) { toast('位置が設定されたスポットがありません'); return; }
+  const opt = pts.map((p, k) => `<option value="${k}">${esc(p.label)}</option>`).join('');
+  $('#rFrom').innerHTML = `<option value="here">📍 現在地</option>` + opt;
+  $('#rTo').innerHTML = opt;
+  if (fromId) {
+    const k = pts.findIndex(p => p.it.id === fromId);
+    $('#rFrom').value = String(k);
+    $('#rTo').value = String(Math.min(k + 1, pts.length - 1));
+  } else { $('#rFrom').value = '0'; $('#rTo').value = String(pts.length - 1); }
+  $('#rMode').value = LS.get('tm_mode') || 'driving';
+  $('#rChunk').value = LS.get('tm_chunk') || (isMobile() ? '9' : '9');
+  U.wpOff = new Set();
+  openSheet('#shRoute');
+  buildRoute();
+}
+function buildRoute(){
+  const pts = routePoints();
+  const fv = $('#rFrom').value, tv = $('#rTo').value;
+  const fi = fv === 'here' ? null : +fv, ti = +tv;
+  const mode = $('#rMode').value;
+  // intermediate indices in list order (direction aware)
+  let mids = [];
+  if (fi != null && fi !== ti) {
+    const step = ti > fi ? 1 : -1;
+    for (let k = fi + step; k !== ti; k += step) mids.push(k);
+  }
+  const ul = $('#rWp'); ul.innerHTML = '';
+  if (!mids.length) ul.innerHTML = '<li style="color:var(--sub);font-size:12.5px;border:0">（出発と到着の間に地点はありません。出発・到着を変えると間の地点が表示されます）</li>';
+  mids.forEach(k => {
+    const p = pts[k];
+    const li = document.createElement('li');
+    li.innerHTML = `<label><input type="checkbox" ${U.wpOff.has(p.it.id) ? '' : 'checked'}><span class="badge small ${p.it.cat}" style="--c:${CATS[p.it.cat].color}">${esc(p.badge)}</span><span class="nm">${esc(names(p.it).main)}</span></label>`;
+    li.querySelector('input').onchange = ev => { ev.target.checked ? U.wpOff.delete(p.it.id) : U.wpOff.add(p.it.id); buildRoute(); };
+    ul.appendChild(li);
+  });
+  const wps = mids.filter(k => !U.wpOff.has(pts[k].it.id)).map(k => pts[k]);
+  const stops = [fi == null ? { here:true, badge:'現在地' } : pts[fi], ...wps, pts[ti]];
+  // links
+  let maxW = +$('#rChunk').value;
+  if (mode === 'transit') maxW = 0;
+  const segs = [];
+  let i = 0;
+  while (i < stops.length - 1) {
+    const j = Math.min(i + maxW + 1, stops.length - 1);
+    segs.push(stops.slice(i, j + 1)); i = j;
+  }
+  const ll = s => `${s.it.lat},${s.it.lng}`;
+  const box = $('#rLinks'); box.innerHTML = '';
+  if (fi != null && fi === ti) { box.innerHTML = '<div class="hint">出発と到着が同じです。</div>'; drawRoute([]); return; }
+  segs.forEach((seg, n) => {
+    const o = seg[0], d = seg[seg.length - 1], w = seg.slice(1, -1);
+    let url = 'https://www.google.com/maps/dir/?api=1';
+    if (!o.here) url += '&origin=' + ll(o);
+    url += '&destination=' + ll(d);
+    if (w.length) url += '&waypoints=' + w.map(ll).join('%7C');
+    url += '&travelmode=' + mode;
+    const a = document.createElement('a');
+    a.className = 'btn ' + (n === 0 ? 'pri' : '');
+    a.href = url; a.target = '_blank'; a.rel = 'noopener';
+    const path = seg.map(s => s.badge).join(' → ');
+    a.textContent = (segs.length > 1 ? `区間${n+1}：` : 'Googleマップで開く：') + path;
+    box.appendChild(a);
+  });
+  const total = wps.length;
+  $('#rHint').textContent = mode === 'transit'
+    ? '公共交通は経由地を指定できないため、区間ごとのリンクになります。'
+    : `経由 ${total} か所${segs.length > 1 ? ` → ${segs.length}つのリンクに分割` : ''}`;
+  LS.set('tm_mode', mode); LS.set('tm_chunk', $('#rChunk').value);
+  drawRoute(stops.filter(s => !s.here).map(s => [s.it.lat, s.it.lng]));
+}
+function drawRoute(latlngs){
+  if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+  if (latlngs.length >= 2) {
+    routeLine = L.polyline(latlngs, { color:'#1a73e8', weight:4, opacity:.8, dashArray:'8 8' }).addTo(map);
+    map.fitBounds(routeLine.getBounds(), { padding:[40,40], maxZoom:16 });
+  }
+}
+['#rFrom','#rTo','#rMode','#rChunk'].forEach(s => $(s).addEventListener('change', () => { if (s === '#rFrom' || s === '#rTo') U.wpOff = new Set(); buildRoute(); }));
+$('#rAll').onclick = () => { U.wpOff = new Set(); buildRoute(); };
+$('#rNone').onclick = () => { routePoints().forEach(p => U.wpOff.add(p.it.id)); buildRoute(); };
+
+/* =========================================================
+   Print
+   ========================================================= */
+function buildPrint(){
+  const c = curCity(), items = cityItems(), b = badgeMap(items), withMemo = $('#pvMemo').checked;
+  $('#pvTitle').textContent = `${S.data.title} ― ${c.name}`;
+  $('#pvSub').textContent = `${items.length}か所　印刷日 ${new Date().toLocaleDateString('ja-JP')}`;
+  $('#pvCityMemo').textContent = c.memo || '';
+  $('#pvCityMemo').classList.toggle('hidden', !(withMemo && c.memo));
+  $('#pvTable').innerHTML = `<thead><tr><th>No</th><th>訪問先</th><th>施設名・住所</th>${withMemo ? '<th>メモ</th>' : ''}</tr></thead><tbody>` +
+    items.map(it => `<tr><td class="no"><span class="badge ${it.cat}" style="--c:${CATS[it.cat].color}">${esc(b[it.id])}</span></td>
+      <td><b>${esc(it.label || it.name)}</b><div style="color:#666;font-size:11px">${esc(CATS[it.cat].name)}</div></td>
+      <td>${esc(it.label ? it.name : '')}${it.addr ? `<div style="color:#555">${esc(it.addr)}</div>` : ''}</td>
+      ${withMemo ? `<td style="white-space:pre-wrap">${esc(it.memo)}</td>` : ''}</tr>`).join('') + '</tbody>';
+}
+function enterPrint(){
+  closeSheets(); U.sel = null;
+  document.body.classList.add('printing');
+  $('#app').classList.remove('hidden');
+  document.body.insertBefore($('#printView'), $('#app'));
+  $('#app').after($('#printBottom'));
+  buildPrint();
+  setTimeout(() => { map.invalidateSize(); renderMarkers(); fitCity(false); }, 60);
+}
+function exitPrint(){
+  document.body.classList.remove('printing');
+  setTimeout(() => { map.invalidateSize(); fitCity(false); }, 60);
+}
+$('#bPrint').onclick = enterPrint;
+$('#pvBack').onclick = exitPrint;
+$('#pvMemo').onchange = buildPrint;
+$('#pvPrint').onclick = () => {
+  map.invalidateSize(); fitCity(false);
+  let done = false;
+  const go = () => { if (done) return; done = true; setTimeout(() => window.print(), 150); };
+  tileLayer.once('load', go);
+  setTimeout(go, 2500);
+};
+
+/* =========================================================
+   Settings
+   ========================================================= */
+function openSettings(){
+  closeSheets();
+  $('#sTitle').value = S.data.title;
+  const c = repoCfg();
+  $('#gOwner').value = c.owner || ''; $('#gRepo').value = c.repo || ''; $('#gBranch').value = c.branch; $('#gPath').value = c.path;
+  $('#gToken').value = '';
+  $('#gStat').textContent = S.token ? '✅ この端末はトークン登録済み（自動同期中）' : '⚠ この端末はトークン未登録（変更はこの端末内にのみ保存されます）';
+  renderCityList();
+  openSheet('#shSet');
+}
+function renderCityList(){
+  const ul = $('#cityList'); ul.innerHTML = '';
+  S.data.cities.forEach(c => {
+    const li = document.createElement('li');
+    const n = cityItems(c.id).length;
+    li.innerHTML = `<input type="text" value="${esc(c.name)}" style="flex:1;min-width:0;border:1px solid var(--line);border-radius:7px;padding:5px 8px">
+      <span style="font-size:12px;color:var(--sub);white-space:nowrap">${n}件</span>
+      <button class="btn sm">名前変更</button><button class="btn sm dng" ${n || S.data.cities.length < 2 ? 'disabled' : ''}>削除</button>`;
+    const [inp] = li.getElementsByTagName('input'), [rn, del] = li.getElementsByTagName('button');
+    rn.onclick = () => { const v = inp.value.trim(); if (v) { c.name = v; changed(); toast('変更しました'); } };
+    del.onclick = () => { S.data.cities = S.data.cities.filter(x => x !== c); if (U.city === c.id) U.city = S.data.cities[0].id; changed(); renderCityList(); };
+    ul.appendChild(li);
+  });
+}
+$('#bSettings').onclick = openSettings;
+$('#sTitleSave').onclick = () => { const v = $('#sTitle').value.trim(); if (v) { S.data.title = v; changed(); toast('変更しました'); } };
+$('#newCityBtn').onclick = () => {
+  const name = $('#newCity').value.trim(), p = parseLoc($('#newCityPos').value);
+  if (!name) { toast('都市名を入力してください'); return; }
+  if (!p || p.short) { toast('中心座標を「緯度, 経度」で入力してください'); return; }
+  const c = { id:uid(), name, lat:p.lat, lng:p.lng, zoom:13, memo:'' };
+  S.data.cities.push(c); $('#newCity').value = ''; $('#newCityPos').value = '';
+  changed(); renderCityList(); toast(name + ' を追加しました');
+};
+$('#gSave').onclick = async () => {
+  const cfg = { owner:$('#gOwner').value.trim(), repo:$('#gRepo').value.trim(), branch:$('#gBranch').value.trim() || 'main', path:$('#gPath').value.trim() || 'data.enc.json' };
+  LS.set('tm_repo', JSON.stringify(cfg));
+  const tok = $('#gToken').value.trim();
+  const st = $('#gStat'); st.textContent = '接続テスト中…';
+  const prev = S.token;
+  if (tok) S.token = tok;
+  try {
+    const c = repoCfg();
+    const r = await fetch(`https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}`, { headers:ghHeaders() });
+    if (!r.ok) throw new Error(r.status === 404 ? 'リポジトリが見つからないか、トークンに権限がありません' : 'HTTP ' + r.status);
+    const j = await r.json();
+    if (S.token && !(j.permissions && j.permissions.push)) throw new Error('トークンに書き込み権限（Contents: Read and write）がありません');
+    if (tok) await saveToken(tok);
+    $('#gToken').value = '';
+    const g = await ghGet(); S.sha = g && g.sha;
+    st.textContent = S.token ? '✅ 接続OK。この端末の変更は自動で同期されます' : '✅ 接続OK（トークン未登録のため閲覧のみ）';
+    startPolling();
+    if (S.token) { S.data.updatedAt = new Date().toISOString(); S.dirty = true; await persist(); }
+  } catch(e) {
+    S.token = prev;
+    st.textContent = '❌ ' + e.message;
+  }
+};
+$('#gClear').onclick = async () => { await saveToken(null); clearInterval(S.pollT); setSync('local'); $('#gStat').textContent = 'トークンを削除しました'; };
+$('#npSave').onclick = async () => {
+  const a = $('#np1').value, b = $('#np2').value;
+  if (a.length < 8) { toast('8文字以上にしてください'); return; }
+  if (a !== b) { toast('2つの入力が一致しません'); return; }
+  const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
+  const key = await deriveKey(a, salt, ITER);
+  const tok = S.token;
+  S.key = key; S.salt = salt; S.iter = ITER;
+  if (tok) await saveToken(tok);
+  if (LS.get('tm_key')) LS.set('tm_key', JSON.stringify({ salt, k:b64(await crypto.subtle.exportKey('raw', key)) }));
+  $('#np1').value = ''; $('#np2').value = '';
+  S.data.updatedAt = new Date().toISOString(); S.dirty = true;
+  await persist();
+  toast(S.token ? 'パスワードを変更しました' : 'パスワードを変更しました（この端末のみ。同期を設定するとGitHubにも反映されます）', 4000);
+};
+$('#dCopy').onclick = async () => {
+  try { await navigator.clipboard.writeText(JSON.stringify(S.data, null, 2)); toast('コピーしました（パスワードなしの平文です。取り扱い注意）', 3500); }
+  catch(e) { $('#dImpBox').classList.remove('hidden'); $('#dImp').value = JSON.stringify(S.data, null, 2); $('#dImp').select(); toast('自動コピーできないため、表示した内容をコピーしてください', 3500); }
+};
+$('#dShowImp').onclick = () => $('#dImpBox').classList.toggle('hidden');
+$('#dImpBtn').onclick = () => {
+  try { const d = normalize(JSON.parse($('#dImp').value)); S.data = d; U.city = d.cities[0].id; changed(); fitCity(); toast('復元しました'); $('#dImp').value = ''; }
+  catch(e) { toast('JSONの形式が正しくありません'); }
+};
+$('#lockNow').onclick = () => { LS.del('tm_key'); relock('ロックしました'); };
+
+/* =========================================================
+   Wiring
+   ========================================================= */
+$('#bAdd').onclick = () => openItem(null);
+$('#bRoute').onclick = () => openRoute(null);
+$('#bFit').onclick = () => fitCity(true);
+$('#bTiles').onclick = () => setTiles(TILE_ORDER[(TILE_ORDER.indexOf(U.tiles) + 1) % TILE_ORDER.length]);
+$('#dispSel').onchange = () => { S.data.settings.display = $('#dispSel').value; changed(); };
+$('#sortSel').onchange = () => {
+  const v = $('#sortSel').value; $('#sortSel').value = '';
+  let items = cityItems();
+  if (v === 'cat') items = items.slice().sort((a,b) => CAT_ORDER.indexOf(a.cat) - CAT_ORDER.indexOf(b.cat));
+  else if (v === 'name') items = items.slice().sort((a,b) => names(a).main.localeCompare(names(b).main, 'ja'));
+  else if (v === 'reverse') items = items.slice().reverse();
+  else return;
+  reorderCity(items.map(i => i.id));
+};
+let memoT;
+$('#cityMemo').addEventListener('input', () => {
+  clearTimeout(memoT);
+  memoT = setTimeout(() => { curCity().memo = $('#cityMemo').value; changed({noRender:true}); $('#cityMemoPrev').textContent = curCity().memo ? '― ' + curCity().memo.split('\n')[0].slice(0,24) : ''; }, 600);
+});
+window.addEventListener('resize', () => { if (map) map.invalidateSize(); document.documentElement.style.setProperty('--hdrh', $('#hdr').offsetHeight + 'px'); });
+
+function startApp(){
+  if (!started) { fillCatSelect(); initMap(); started = true; }
+  const saved = LS.get('tm_city');
+  U.city = S.data.cities.find(c => c.id === saved) ? saved : S.data.cities[0].id;
+  renderAll();
+  setTimeout(() => { map.invalidateSize(); fitCity(false); }, 30);
+}
+
+if (!window.L) {
+  document.getElementById('lockMsg').textContent = '地図ライブラリを読み込めませんでした。通信環境を確認して再読み込みしてください。';
+} else if (!window.crypto || !crypto.subtle) {
+  document.getElementById('lockMsg').textContent = 'このブラウザでは暗号化機能が使えません（https で開いてください）。';
+} else {
+  boot();
+}
+</script>
+</body>
+</html>
