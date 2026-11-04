@@ -153,26 +153,71 @@ header{grid-area:hdr;background:var(--panel);border-bottom:1px solid var(--line)
 @media (min-width:821px){
   .sheet{left:0;top:var(--hdrh,56px);bottom:0;width:400px;border-right:1px solid var(--line);box-shadow:4px 0 20px rgba(0,0,0,.08)}
 }
-/* ---------- mobile ---------- */
+/* selected item detail (all sizes) */
+.idetail{margin-top:6px}
+.idetail .addr{color:var(--sub);font-size:12.5px;margin-bottom:6px;word-break:break-word}
+.iacts{display:flex;gap:6px;flex-wrap:wrap}
+.iacts a,.iacts button{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 10px;font-size:13px;font-weight:600;color:var(--accent);text-decoration:none;min-height:36px}
+.iacts .main{background:var(--accent);border-color:var(--accent);color:#fff}
+.mOnly{display:none}
+.reorderBar{display:none}
+
+/* ---------- mobile: full-screen map + bottom sheet ---------- */
 @media (max-width:820px){
-  #app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 40vh minmax(0,1fr);grid-template-areas:"hdr" "map" "list"}
-  #listPane{border-right:0;border-top:1px solid var(--line)}
-  header{gap:6px 6px;padding:8px 10px;min-width:0}
-  header::after{content:"";order:5;flex-basis:100%;height:0}
-  .title{order:1;flex:0 1 auto;min-width:0;max-width:none;font-size:14px}
-  .sync{order:1;font-size:11px}
-  .hgap{order:1;display:block}
-  #bPrint{order:2} #bSettings{order:3}
-  #cityTabs{order:10;flex:1;min-width:0;overflow-x:auto}
-  #cityTabs button{flex:1;padding:6px 8px}
-  #bRoute{order:11} #bAdd{order:12}
-  .pc{display:none}
-  .btn{padding:7px 10px}
-  .sheet{left:0;right:0;bottom:0;max-height:78vh;border-radius:16px 16px 0 0}
-  .sheet.tall{top:12vh}
+  #app{display:block;height:100dvh}
+  #mapPane{position:fixed;inset:0;z-index:1}
+  .leaflet-control-attribution{font-size:9px}
+  header{position:fixed;top:0;left:0;right:0;z-index:1200;background:transparent;border:0;padding:calc(env(safe-area-inset-top) + 8px) 10px 0;pointer-events:none;justify-content:center;flex-wrap:nowrap}
+  header > *{display:none!important}
+  header #cityTabs{display:inline-flex!important;pointer-events:auto;box-shadow:0 2px 12px rgba(0,0,0,.2);background:#fff;border-radius:14px;padding:4px;max-width:100%;overflow-x:auto}
+  #cityTabs button{padding:9px 16px;font-size:14.5px;border-radius:10px}
+  #cityTabs button.on{background:var(--accent);color:#fff;box-shadow:none}
+  .mapBtns{top:calc(env(safe-area-inset-top) + 66px);right:10px;gap:8px}
+  .mapBtns .btn{width:44px;height:44px;justify-content:center;border-radius:12px;font-size:19px;padding:0}
+  .mapBtns .btn .t{display:none}
+  .mOnly{display:flex}
+
+  #listPane{position:fixed;left:0;right:0;bottom:0;z-index:1100;border:0;border-radius:18px 18px 0 0;box-shadow:0 -6px 28px rgba(0,0,0,.2);
+    transform:translateY(var(--sy,50vh));transition:transform .3s cubic-bezier(.2,.8,.2,1);will-change:transform;overflow:hidden}
+  #listPane.drag{transition:none}
+  .grab{justify-content:center;padding:9px 0 3px;touch-action:none;cursor:grab}
+  .grab span{width:42px;height:5px;border-radius:3px;background:#c4cad3}
+  .mHead{align-items:center;gap:8px;padding:2px 12px 10px;border-bottom:1px solid var(--line);touch-action:none}
+  .mHead .mt{flex:1;min-width:0}
+  .mHead .mt b{font-size:17px}
+  .mHead .mt .cnt{color:var(--sub);font-size:13px;margin-left:4px}
+  .mHead .mt .sync{font-size:11px;display:flex;margin-top:1px}
+  .mHead .btn{height:42px;border-radius:12px;padding:0 13px;font-size:14px}
+  .mHead .btn.icon{width:42px;padding:0;justify-content:center;font-size:20px;letter-spacing:1px}
+  .listTools{display:none}
+  .cityMemo{padding:10px 14px}
+  #list li{padding:12px 12px 12px 10px;gap:10px;min-height:58px}
+  #list li .edit{display:none}
+  .badge{min-width:34px;height:34px;font-size:14px}
+  .iname{font-size:15.5px}
+  .isub{font-size:13px}
+  .handle{display:none;font-size:22px;padding:6px 6px 6px 2px}
+  body.reorder .handle{display:block}
+  body.reorder .reorderBar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:#fef7e0;border-bottom:1px solid #f6e3a1;font-size:13px}
+  body.reorder .reorderBar span{flex:1}
+  body.picking #listPane{transform:translateY(100%)!important}
+
+  .sheet{left:0;right:0;bottom:0;max-height:62vh;border-radius:18px 18px 0 0;z-index:1500;transition:transform .25s}
+  .sheet.tall{max-height:none;top:calc(env(safe-area-inset-top) + 10px)}
+  .sheet.drag{transition:none}
+  .sheet .sh-h{position:relative;touch-action:none;padding-top:18px}
+  .sheet .sh-h::before{content:"";position:absolute;top:7px;left:50%;transform:translateX(-50%);width:40px;height:5px;border-radius:3px;background:#c4cad3}
+  .sheet .x{font-size:24px;padding:4px 10px}
   .fld input,.fld select,.fld textarea{font-size:16px}
-  #list li{padding:10px 8px 10px 2px}
+  .btn{min-height:40px}
+  .btn.sm{min-height:36px;padding:6px 11px}
+  #peekBar{bottom:calc(env(safe-area-inset-bottom) + 18px)}
 }
+@media (min-width:821px){ .grab,.mHead{display:none!important} }
+.menuGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.menuGrid .btn{justify-content:center;min-height:46px}
+.seg.full{display:flex;width:100%}
+.seg.full button{flex:1;padding:9px 6px}
 body{overflow-x:hidden}
 .fld,.row>*{min-width:0}
 select{max-width:100%}
@@ -180,6 +225,7 @@ select{max-width:100%}
 /* ---------- print ---------- */
 #printView{display:none}
 body.printing #app{display:block;height:auto}
+body.printing #mapPane{position:relative!important;inset:auto!important}
 body.printing header,body.printing #listPane,body.printing .mapBtns,body.printing .sheet,body.printing #peekBar{display:none!important}
 body.printing{background:#fff}
 body.printing #printView{display:block;padding:16px 18px 0;max-width:820px;margin:0 auto}
@@ -235,6 +281,14 @@ table.pt .badge{min-width:24px;height:24px;font-size:11px}
   </header>
 
   <section id="listPane">
+    <div class="grab mOnly" id="sheetGrab"><span></span></div>
+    <div class="mHead mOnly" id="sheetHead">
+      <div class="mt"><b id="mCity">—</b><span class="cnt" id="mCount"></span><span class="sync" id="sync2"><i></i><span>—</span></span></div>
+      <button class="btn" data-act="route">🧭 経路</button>
+      <button class="btn pri" data-act="add">＋ 追加</button>
+      <button class="btn icon" data-act="menu" aria-label="メニュー">⋯</button>
+    </div>
+    <div class="reorderBar"><span>⠿ をドラッグして並べ替え</span><button class="btn sm pri" id="reorderDone">完了</button></div>
     <div class="listTools">
       <span class="lbl">表示名</span>
       <select id="dispSel">
@@ -260,8 +314,8 @@ table.pt .badge{min-width:24px;height:24px;font-size:11px}
   <section id="mapPane">
     <div id="map"></div>
     <div class="mapBtns">
-      <button class="btn" id="bFit" title="全体表示">⤢ 全体</button>
-      <button class="btn" id="bTiles" title="地図の種類">🗺 標準</button>
+      <button class="btn" id="bFit" title="全体表示">⤢<span class="t"> 全体</span></button>
+      <button class="btn" id="bTiles" title="地図の種類">🗺<span class="t"> 標準</span></button>
     </div>
   </section>
 </div>
@@ -282,6 +336,31 @@ table.pt .badge{min-width:24px;height:24px;font-size:11px}
 <div id="printBottom"><table class="pt" id="pvTable"></table></div>
 
 <!-- ======= Sheets ======= -->
+<div class="sheet hidden" id="shMenu">
+  <div class="sh-h"><h2 id="menuTitle">メニュー</h2><button class="x" data-close>×</button></div>
+  <div class="sh-b">
+    <div class="fld"><label>リストの表示名</label>
+      <div class="seg full" id="menuDisp">
+        <button data-v="label">訪問先名</button><button data-v="name">施設名</button><button data-v="both">両方</button>
+      </div>
+    </div>
+    <div class="fld"><label>並べ替え</label>
+      <div class="menuGrid">
+        <button class="btn" data-sort="manual">✋ 手動で並べ替え</button>
+        <button class="btn" data-sort="cat">区分順に整列</button>
+        <button class="btn" data-sort="name">名前順に整列</button>
+        <button class="btn" data-sort="reverse">逆順にする</button>
+      </div>
+    </div>
+    <div class="fld"><label>その他</label>
+      <div class="menuGrid">
+        <button class="btn" data-act="print">🖨 印刷・PDF</button>
+        <button class="btn" data-act="settings">⚙ 設定</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="sheet hidden" id="shRoute">
   <div class="sh-h"><h2>🧭 経路をGoogleマップで開く</h2><button class="x" data-close>×</button></div>
   <div class="sh-b">
@@ -397,6 +476,12 @@ table.pt .badge{min-width:24px;height:24px;font-size:11px}
       <div class="fld"><input type="password" id="np2" placeholder="もう一度" autocomplete="new-password"></div>
       <button class="btn sm" id="npSave">変更する</button>
       <div class="hint">変更後、他の端末では新しいパスワードの入力が必要になります。</div>
+    </div>
+
+    <div class="box">
+      <h3>🔗 都市別のURL</h3>
+      <div class="hint" style="margin:0 0 6px">このURLで開くと、その都市の地図が最初から表示されます（ブックマーク・ホーム画面追加用）。</div>
+      <ul class="wp" id="cityUrls"></ul>
     </div>
 
     <div class="box">
@@ -572,11 +657,13 @@ async function makeBlob(){
 
 /* ---------- sync status ---------- */
 function setSync(state, text){
-  const el = $('#sync');
-  el.className = 'sync ' + state;
   const t = { ok:'同期済み', saving:'保存中…', local:'この端末のみ保存', err:'同期エラー', ro:'閲覧のみ' }[state] || state;
-  el.querySelector('span').textContent = text || t;
-  el.title = state === 'local' ? '設定 → 同期 でトークンを登録すると、PC・スマホで自動同期されます' : (text || t);
+  ['#sync','#sync2'].forEach(s => {
+    const el = $(s); if (!el) return;
+    el.className = 'sync ' + state;
+    el.querySelector('span').textContent = text || t;
+    el.title = state === 'local' ? '設定 → 同期 でトークンを登録すると、PC・スマホで自動同期されます' : (text || t);
+  });
 }
 
 /* ---------- save / pull ---------- */
@@ -717,10 +804,12 @@ function setTiles(k){
   U.tiles = k; LS.set('tm_tiles', k);
   if (tileLayer) map.removeLayer(tileLayer);
   tileLayer = L.tileLayer(TILES[k].url, TILES[k].opt).addTo(map);
-  $('#bTiles').textContent = TILES[k].label;
+  const [ic, ...rest] = TILES[k].label.split(' ');
+  $('#bTiles').innerHTML = `${ic}<span class="t"> ${esc(rest.join(' '))}</span>`;
+  $('#bTiles').title = '地図の種類: ' + rest.join(' ');
 }
 function initMap(){
-  map = L.map('map', { zoomControl:true, tap:true });
+  map = L.map('map', { zoomControl:!isMobile(), tap:true });
   setTiles(LS.get('tm_tiles') || 'osm');
   map.on('click', e => { if (U.picking) setFormPos(e.latlng.lat, e.latlng.lng, true); });
   map.on('popupopen', e => {
@@ -768,7 +857,7 @@ function renderMarkers(){
   items.forEach(it => {
     if (it.lat == null || it.id === U.editId) return;
     const m = L.marker([it.lat, it.lng], { icon:pinIcon(it, badges[it.id], it.id === U.sel), title:names(it).main, riseOnHover:true });
-    m.bindPopup(() => popupHtml(it, badges[it.id]), { maxWidth:280 });
+    if (!isMobile()) m.bindPopup(() => popupHtml(it, badges[it.id]), { maxWidth:280 });
     m.on('click', () => select(it.id, 'map'));
     if (it.id === U.sel) m.setZIndexOffset(1000);
     m.addTo(map);
@@ -778,9 +867,9 @@ function renderMarkers(){
 function fitCity(animate){
   const pts = cityItems().filter(i => i.lat != null).map(i => [i.lat, i.lng]);
   const c = curCity();
-  if (pts.length >= 2) map.fitBounds(L.latLngBounds(pts), { padding:[36,36], maxZoom:16, animate:!!animate });
-  else if (pts.length === 1) map.setView(pts[0], 15, {animate:!!animate});
-  else map.setView([c.lat, c.lng], c.zoom || 13, {animate:!!animate});
+  if (pts.length >= 2) fitSafe(pts, 16, animate);
+  else if (pts.length === 1) centerOn(pts[0][0], pts[0][1], 15, animate);
+  else centerOn(c.lat, c.lng, c.zoom || 13, animate);
 }
 
 /* =========================================================
@@ -816,9 +905,11 @@ function renderHeader(){
     const b = document.createElement('button');
     b.textContent = c.name + ` ${cityItems(c.id).length}`;
     if (c.id === U.city) b.classList.add('on');
-    b.onclick = () => switchCity(c.id);
+    b.onclick = () => { if (c.id !== U.city) switchCity(c.id); };
     tabs.appendChild(b);
   });
+  $('#mCity').textContent = curCity().name;
+  $('#mCount').textContent = `${cityItems().length}か所`;
   requestAnimationFrame(() => document.documentElement.style.setProperty('--hdrh', $('#hdr').offsetHeight + 'px'));
 }
 function renderList(){
@@ -836,13 +927,32 @@ function renderList(){
     li.dataset.id = it.id;
     if (it.id === U.sel) li.classList.add('sel');
     const chip = it.lat == null ? '<span class="chip na">位置未設定</span>' : (!it.ok ? '<span class="chip warn">位置要確認</span>' : '');
+    const sel = it.id === U.sel;
+    let detail = '';
+    if (sel) {
+      const acts = it.lat != null
+        ? `<a class="main" href="https://www.google.com/maps/dir/?api=1&destination=${it.lat},${it.lng}&travelmode=driving" target="_blank" rel="noopener">🚗 ここへ行く</a>
+           <a href="${esc(gmapUrl(it))}" target="_blank" rel="noopener">📍 Googleマップ</a>
+           <button data-iact="route">🧭 ここから…</button>
+           <button data-iact="edit">✎ 編集</button>`
+        : `<button class="main" data-iact="edit">📍 位置を設定</button>`;
+      detail = `<div class="idetail">${it.addr ? `<div class="addr">${esc(it.addr)}</div>` : ''}<div class="iacts">${acts}</div></div>`;
+    }
     li.innerHTML = `<span class="handle" title="ドラッグで並べ替え">⠿</span>
       <span class="badge ${it.cat}" style="--c:${CATS[it.cat].color}">${esc(badges[it.id])}</span>
       <div class="ibody"><div class="iname">${esc(n.main)}${chip}</div>
         ${n.sub ? `<div class="isub">${esc(n.sub)}</div>` : ''}
-        ${it.memo ? `<div class="imemo">${esc(it.memo)}</div>` : ''}</div>
+        ${it.memo ? `<div class="imemo">${esc(it.memo)}</div>` : ''}${detail}</div>
       <button class="edit" title="編集">✎</button>`;
-    li.querySelector('.ibody').onclick = () => it.lat == null ? openItem(it.id) : select(it.id, 'list');
+    li.querySelector('.ibody').onclick = e => {
+      if (document.body.classList.contains('reorder')) return;
+      const act = e.target.closest('[data-iact]');
+      if (act) { e.stopPropagation(); if (act.dataset.iact === 'edit') openItem(it.id); else openRoute(it.id); return; }
+      if (e.target.closest('.idetail')) return;
+      if (it.lat == null) { openItem(it.id); return; }
+      if (U.sel === it.id && isMobile()) { U.sel = null; renderList(); renderMarkers(); return; }
+      select(it.id, 'list');
+    };
     li.querySelector('.edit').onclick = () => openItem(it.id);
     ul.appendChild(li);
   });
@@ -853,26 +963,167 @@ function renderAll(){
   renderHeader(); renderList(); renderMarkers();
   if (!$('#shRoute').classList.contains('hidden')) buildRoute();
 }
+function cityFromHash(){
+  let h = ''; try { h = decodeURIComponent(location.hash.slice(1)); } catch(e){}
+  if (!h || !S.data) return null;
+  return S.data.cities.find(c => c.id === h || c.name === h) || null;
+}
+function cityUrl(c){ return location.href.split('#')[0] + '#' + encodeURIComponent(c.id); }
 function switchCity(id){
   U.city = id; U.sel = null; LS.set('tm_city', id);
+  try { history.replaceState(null, '', '#' + encodeURIComponent(id)); } catch(e){}
   closeSheets(); renderAll(); fitCity(false);
   $('#list').scrollTop = 0;
 }
+function scrollToItem(id, smooth){
+  const ul = $('#list'), li = ul.querySelector(`li[data-id="${id}"]`);
+  if (!li) return;
+  if (isMobile()) ul.scrollTo({ top: Math.max(0, li.offsetTop - ul.offsetTop - 6), behavior: smooth ? 'smooth' : 'auto' });
+  else li.scrollIntoView({block:'nearest', behavior: smooth ? 'smooth' : 'auto'});
+}
 function select(id, from){
   U.sel = id;
-  document.querySelectorAll('#list li').forEach(li => li.classList.toggle('sel', li.dataset.id === id));
-  renderMarkers();
+  renderList(); renderMarkers();
   const it = byId(id), m = markers[id];
+  if (isMobile()) {
+    if (SH.state !== 'half') setSheet('half');
+    scrollToItem(id, from === 'map');
+    if (it.lat != null) centerOn(it.lat, it.lng, Math.max(map.getZoom(), 15), true);
+    return;
+  }
   if (from === 'list' && m) {
-    map.setView([it.lat, it.lng], Math.max(map.getZoom(), 15), {animate:true});
-    setTimeout(() => m.openPopup(), 250);
+    centerOn(it.lat, it.lng, Math.max(map.getZoom(), 15), true);
+    setTimeout(() => m.openPopup(), 300);
   }
   if (from === 'map') {
-    const li = document.querySelector(`#list li[data-id="${id}"]`);
-    if (li) li.scrollIntoView({block:'nearest', behavior:'smooth'});
+    scrollToItem(id, true);
     if (m) m.openPopup();
   }
 }
+
+/* ---------- map insets / centering (mobile sheet aware) ---------- */
+function insets(){
+  if (!isMobile()) return { top:0, bottom:0 };
+  const tabs = $('#cityTabs').getBoundingClientRect();
+  const top = (tabs.bottom || 60) + 8;
+  let bottom = document.body.classList.contains('picking') ? 90 : (SH.visible || 0);
+  ['#shRoute','#shItem','#shSet','#shMenu'].forEach(s => { const el = $(s); if (!el.classList.contains('hidden') && !document.body.classList.contains('picking')) bottom = Math.max(bottom, el.getBoundingClientRect().height); });
+  return { top, bottom };
+}
+function centerOn(lat, lng, zoom, animate){
+  const z = zoom == null ? map.getZoom() : zoom, i = insets();
+  if (!i.top && !i.bottom) { map.setView([lat, lng], z, {animate:!!animate}); return; }
+  const H = map.getSize().y;
+  const off = H / 2 - (i.top + (H - i.bottom - i.top) / 2);
+  map.setView(map.unproject(map.project([lat, lng], z).add([0, off]), z), z, {animate:!!animate});
+}
+function fitSafe(latlngs, maxZoom, animate){
+  const i = insets();
+  map.fitBounds(L.latLngBounds(latlngs), { paddingTopLeft:[30, i.top + 24], paddingBottomRight:[30, i.bottom + 24], maxZoom: maxZoom || 16, animate:!!animate });
+}
+
+/* ---------- mobile bottom sheet (list) ---------- */
+const SH = { state:'half', visible:0, full:0, mini:0, half:0 };
+function sheetMetrics(){
+  const vh = window.innerHeight;
+  const tabs = $('#cityTabs').getBoundingClientRect();
+  SH.full = Math.round(vh - Math.max(tabs.bottom || 60, 50) - 10);
+  SH.mini = Math.round(($('#sheetGrab').offsetHeight || 22) + ($('#sheetHead').offsetHeight || 64));
+  SH.half = Math.round(Math.max(SH.mini + 140, vh * 0.5));
+}
+function sheetVisibleFor(state){ return state === 'full' ? SH.full : state === 'mini' ? SH.mini : SH.half; }
+function setSheet(state){
+  const lp = $('#listPane'), ul = $('#list');
+  if (!isMobile()) { lp.style.height = ''; lp.style.removeProperty('--sy'); ul.style.paddingBottom = ''; SH.visible = 0; return; }
+  sheetMetrics();
+  SH.state = state; SH.visible = sheetVisibleFor(state);
+  lp.style.height = SH.full + 'px';
+  lp.style.setProperty('--sy', (SH.full - SH.visible) + 'px');
+  ul.style.paddingBottom = (SH.full - SH.visible + 24) + 'px';
+}
+(function(){
+  const lp = document.getElementById('listPane'), ul = document.getElementById('list');
+  let d = null, suppressClick = false;
+  const start = y => { sheetMetrics(); d = { y0:y, base:SH.full - SH.visible, ty:SH.full - SH.visible, ly:y, lt:performance.now(), v:0, moved:false }; lp.classList.add('drag'); };
+  const move = y => {
+    if (!d) return;
+    const dy = y - d.y0; if (Math.abs(dy) > 6) d.moved = true;
+    d.ty = Math.min(Math.max(d.base + dy, 0), SH.full - 30);
+    lp.style.setProperty('--sy', d.ty + 'px');
+    const t = performance.now(); if (t > d.lt) { d.v = (y - d.ly) / (t - d.lt); d.ly = y; d.lt = t; }
+  };
+  const end = () => {
+    if (!d) return;
+    lp.classList.remove('drag');
+    const vis = SH.full - d.ty, order = ['mini','half','full'];
+    let next;
+    if (!d.moved) { next = SH.state === 'mini' ? 'half' : SH.state === 'half' ? 'full' : 'half'; }
+    else if (d.v > 0.45) next = [...order].reverse().find(s => sheetVisibleFor(s) < vis - 10) || 'mini';
+    else if (d.v < -0.45) next = order.find(s => sheetVisibleFor(s) > vis + 10) || 'full';
+    else next = order.reduce((a, s) => Math.abs(sheetVisibleFor(s) - vis) < Math.abs(sheetVisibleFor(a) - vis) ? s : a, 'half');
+    suppressClick = d.moved;
+    d = null;
+    setSheet(next);
+  };
+  // header / grabber: pointer events
+  ['sheetGrab','sheetHead'].forEach(idn => {
+    const el = document.getElementById(idn);
+    el.addEventListener('pointerdown', e => {
+      if (!isMobile() || e.button > 0) return;
+      const onBtn = !!e.target.closest('button');
+      start(e.clientY);
+      if (onBtn) d.fromBtn = true;
+      const mv = ev => move(ev.clientY);
+      const up = () => {
+        window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+        if (d && d.fromBtn && !d.moved) { lp.classList.remove('drag'); setSheet(SH.state); d = null; return; }
+        end();
+      };
+      window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+    });
+  });
+  lp.addEventListener('click', e => { if (suppressClick) { suppressClick = false; e.stopPropagation(); e.preventDefault(); } }, true);
+  // list area: take over the gesture at scroll top (swipe down to shrink / up to expand)
+  let t = null;
+  ul.addEventListener('touchstart', e => {
+    if (!isMobile() || document.body.classList.contains('reorder') || e.target.closest('.handle')) { t = null; return; }
+    t = { y:e.touches[0].clientY, st:ul.scrollTop, active:false };
+  }, {passive:true});
+  ul.addEventListener('touchmove', e => {
+    if (!t) return;
+    const y = e.touches[0].clientY, dy = y - t.y;
+    if (!t.active) {
+      if (t.st <= 0 && ul.scrollTop <= 0 && dy > 8) { t.active = true; start(t.y); }
+      else if (SH.state !== 'full' && t.st <= 0 && dy < -8) { t.active = true; start(t.y); }
+      else { if (Math.abs(dy) > 8) t = null; return; }
+    }
+    e.preventDefault(); move(y);
+  }, {passive:false});
+  const tEnd = () => { if (t && t.active) end(); t = null; };
+  ul.addEventListener('touchend', tEnd); ul.addEventListener('touchcancel', tEnd);
+})();
+
+/* ---------- swipe down to close modal sheets (mobile) ---------- */
+document.querySelectorAll('.sheet .sh-h').forEach(h => {
+  h.addEventListener('pointerdown', e => {
+    if (!isMobile() || e.target.closest('button,input,select,a')) return;
+    const sh = h.closest('.sheet'), y0 = e.clientY;
+    let dy = 0, ly = y0, lt = performance.now(), v = 0;
+    sh.classList.add('drag');
+    const mv = ev => {
+      dy = Math.max(0, ev.clientY - y0);
+      sh.style.transform = `translateY(${dy}px)`;
+      const t = performance.now(); if (t > lt) { v = (ev.clientY - ly) / (t - lt); ly = ev.clientY; lt = t; }
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+      sh.classList.remove('drag');
+      if (dy > 90 || (v > 0.5 && dy > 20)) { closeSheets(); }
+      sh.style.transform = '';
+    };
+    window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+  });
+});
 
 /* ---------- drag & drop reorder ---------- */
 (function(){
@@ -884,8 +1135,8 @@ function select(id, from){
     const pid = e.pointerId;
     let raf = null, lastY = e.clientY;
     const scrollTick = () => {
-      const r = ul.getBoundingClientRect();
-      if (lastY < r.top + 40) ul.scrollTop -= 8; else if (lastY > r.bottom - 40) ul.scrollTop += 8;
+      const r = ul.getBoundingClientRect(), bottom = Math.min(r.bottom, window.innerHeight);
+      if (lastY < r.top + 40) ul.scrollTop -= 8; else if (lastY > bottom - 50) ul.scrollTop += 8;
       raf = requestAnimationFrame(scrollTick);
     };
     raf = requestAnimationFrame(scrollTick);
@@ -927,13 +1178,13 @@ function reorderCity(ids){
    Sheets
    ========================================================= */
 function openSheet(id){
-  ['#shRoute','#shItem','#shSet'].forEach(s => { if (s !== id) $(s).classList.add('hidden'); });
+  ['#shRoute','#shItem','#shSet','#shMenu'].forEach(s => { if (s !== id) $(s).classList.add('hidden'); });
   if (map) map.closePopup();
   $(id).classList.remove('hidden');
 }
 function closeSheets(){
   const wasItem = !$('#shItem').classList.contains('hidden');
-  ['#shRoute','#shItem','#shSet'].forEach(s => $(s).classList.add('hidden'));
+  ['#shRoute','#shItem','#shSet','#shMenu'].forEach(s => $(s).classList.add('hidden'));
   endPick();
   if (routeLine && map) { map.removeLayer(routeLine); routeLine = null; }
   if (tmpMarker && map) { map.removeLayer(tmpMarker); tmpMarker = null; }
@@ -973,7 +1224,7 @@ function openItem(id){
   if (it) { $('#itGmap').href = gmapUrl(it); renderMarkers(); }
   showFormPos();
   openSheet('#shItem');
-  if (it && it.lat != null) map.setView([it.lat, it.lng], Math.max(map.getZoom(), 16));
+  if (it && it.lat != null) centerOn(it.lat, it.lng, Math.max(map.getZoom(), 16));
   if (!it && !isMobile()) setTimeout(() => $('#qIn').focus(), 50);
 }
 function showFormPos(){
@@ -992,7 +1243,7 @@ function showFormPos(){
 function setFormPos(lat, lng, pan){
   U.form.lat = lat; U.form.lng = lng;
   showFormPos();
-  if (pan) map.panTo([lat, lng]); else map.setView([lat, lng], Math.max(map.getZoom(), 16));
+  if (pan) map.panTo([lat, lng]); else centerOn(lat, lng, Math.max(map.getZoom(), 16));
 }
 function updateGoogleSearchLink(){
   const q = ($('#qIn').value || $('#itName').value || $('#itLabel').value || '').trim();
@@ -1061,11 +1312,12 @@ function startPick(msg){
   U.picking = true;
   $('#peekMsg').textContent = msg || '地図をタップして位置を指定（ピンはドラッグで微調整）';
   $('#peekBar').classList.remove('hidden');
-  if (isMobile()) $('#shItem').classList.add('hidden');
+  if (isMobile()) { $('#shItem').classList.add('hidden'); document.body.classList.add('picking'); }
   map.getContainer().style.cursor = 'crosshair';
 }
 function endPick(){
   U.picking = false;
+  document.body.classList.remove('picking');
   $('#peekBar').classList.add('hidden');
   if (map) map.getContainer().style.cursor = '';
 }
@@ -1188,7 +1440,7 @@ function drawRoute(latlngs){
   if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
   if (latlngs.length >= 2) {
     routeLine = L.polyline(latlngs, { color:'#1a73e8', weight:4, opacity:.8, dashArray:'8 8' }).addTo(map);
-    map.fitBounds(routeLine.getBounds(), { padding:[40,40], maxZoom:16 });
+    fitSafe(latlngs, 16, false);
   }
 }
 ['#rFrom','#rTo','#rMode','#rChunk'].forEach(s => $(s).addEventListener('change', () => { if (s === '#rFrom' || s === '#rTo') U.wpOff = new Set(); buildRoute(); }));
@@ -1221,7 +1473,7 @@ function enterPrint(){
 }
 function exitPrint(){
   document.body.classList.remove('printing');
-  setTimeout(() => { map.invalidateSize(); fitCity(false); }, 60);
+  setTimeout(() => { map.invalidateSize(); setSheet(SH.state); fitCity(false); }, 60);
 }
 $('#bPrint').onclick = enterPrint;
 $('#pvBack').onclick = exitPrint;
@@ -1247,7 +1499,25 @@ function openSettings(){
   renderCityList();
   openSheet('#shSet');
 }
+function renderCityUrls(){
+  const ul = $('#cityUrls'); ul.innerHTML = '';
+  S.data.cities.forEach(c => {
+    const li = document.createElement('li');
+    const url = cityUrl(c);
+    li.innerHTML = `<span style="font-weight:700;white-space:nowrap">${esc(c.name)}</span>
+      <input type="text" readonly value="${esc(url)}" style="flex:1;min-width:0;border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-size:12px;background:#fff">
+      <button class="btn sm">コピー</button>`;
+    const inp = li.querySelector('input');
+    inp.onclick = () => inp.select();
+    li.querySelector('button').onclick = async () => {
+      try { await navigator.clipboard.writeText(url); toast(c.name + 'のURLをコピーしました'); }
+      catch(e) { inp.select(); toast('選択した状態です。コピーしてください'); }
+    };
+    ul.appendChild(li);
+  });
+}
 function renderCityList(){
+  renderCityUrls();
   const ul = $('#cityList'); ul.innerHTML = '';
   S.data.cities.forEach(c => {
     const li = document.createElement('li');
@@ -1327,31 +1597,79 @@ $('#lockNow').onclick = () => { LS.del('tm_key'); relock('ロックしました'
    ========================================================= */
 $('#bAdd').onclick = () => openItem(null);
 $('#bRoute').onclick = () => openRoute(null);
-$('#bFit').onclick = () => fitCity(true);
-$('#bTiles').onclick = () => setTiles(TILE_ORDER[(TILE_ORDER.indexOf(U.tiles) + 1) % TILE_ORDER.length]);
-$('#dispSel').onchange = () => { S.data.settings.display = $('#dispSel').value; changed(); };
-$('#sortSel').onchange = () => {
-  const v = $('#sortSel').value; $('#sortSel').value = '';
+$('#bPrint').onclick = enterPrint;
+$('#bSettings').onclick = openSettings;
+// mobile buttons & menu (data-act)
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (!b || b.dataset.id || b.closest('.leaflet-popup')) return;
+  const a = b.dataset.act;
+  if (a === 'route') openRoute(null);
+  else if (a === 'add') openItem(null);
+  else if (a === 'menu') openMenu();
+  else if (a === 'print') enterPrint();
+  else if (a === 'settings') openSettings();
+});
+function openMenu(){
+  closeSheets();
+  $('#menuTitle').textContent = S.data.title;
+  document.querySelectorAll('#menuDisp button').forEach(b => b.classList.toggle('on', b.dataset.v === S.data.settings.display));
+  openSheet('#shMenu');
+}
+document.querySelectorAll('#menuDisp button').forEach(b => b.onclick = () => {
+  S.data.settings.display = b.dataset.v; changed();
+  document.querySelectorAll('#menuDisp button').forEach(x => x.classList.toggle('on', x === b));
+});
+document.querySelectorAll('[data-sort]').forEach(b => b.onclick = () => {
+  const v = b.dataset.sort;
+  closeSheets();
+  if (v === 'manual') { document.body.classList.add('reorder'); U.sel = null; renderList(); renderMarkers(); setSheet('full'); return; }
+  applySort(v);
+});
+$('#reorderDone').onclick = () => { document.body.classList.remove('reorder'); setSheet('half'); };
+function applySort(v){
   let items = cityItems();
   if (v === 'cat') items = items.slice().sort((a,b) => CAT_ORDER.indexOf(a.cat) - CAT_ORDER.indexOf(b.cat));
   else if (v === 'name') items = items.slice().sort((a,b) => names(a).main.localeCompare(names(b).main, 'ja'));
   else if (v === 'reverse') items = items.slice().reverse();
   else return;
   reorderCity(items.map(i => i.id));
+  toast('並べ替えました');
+}
+$('#bFit').onclick = () => fitCity(true);
+$('#bTiles').onclick = () => setTiles(TILE_ORDER[(TILE_ORDER.indexOf(U.tiles) + 1) % TILE_ORDER.length]);
+$('#dispSel').onchange = () => { S.data.settings.display = $('#dispSel').value; changed(); };
+$('#sortSel').onchange = () => {
+  const v = $('#sortSel').value; $('#sortSel').value = '';
+  applySort(v);
 };
 let memoT;
 $('#cityMemo').addEventListener('input', () => {
   clearTimeout(memoT);
   memoT = setTimeout(() => { curCity().memo = $('#cityMemo').value; changed({noRender:true}); $('#cityMemoPrev').textContent = curCity().memo ? '― ' + curCity().memo.split('\n')[0].slice(0,24) : ''; }, 600);
 });
-window.addEventListener('resize', () => { if (map) map.invalidateSize(); document.documentElement.style.setProperty('--hdrh', $('#hdr').offsetHeight + 'px'); });
+window.addEventListener('hashchange', () => {
+  const c = cityFromHash();
+  if (c && c.id !== U.city && !$('#app').classList.contains('hidden')) switchCity(c.id);
+});
+let resizeT;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeT);
+  resizeT = setTimeout(() => {
+    if (map) map.invalidateSize();
+    document.documentElement.style.setProperty('--hdrh', $('#hdr').offsetHeight + 'px');
+    if (S.data) setSheet(SH.state);
+  }, 120);
+});
 
 function startApp(){
   if (!started) { fillCatSelect(); initMap(); started = true; }
-  const saved = LS.get('tm_city');
-  U.city = S.data.cities.find(c => c.id === saved) ? saved : S.data.cities[0].id;
+  const saved = LS.get('tm_city'), fromHash = cityFromHash();
+  U.city = fromHash ? fromHash.id : (S.data.cities.find(c => c.id === saved) ? saved : S.data.cities[0].id);
+  try { history.replaceState(null, '', '#' + encodeURIComponent(U.city)); } catch(e){}
   renderAll();
-  setTimeout(() => { map.invalidateSize(); fitCity(false); }, 30);
+  setSheet('half');
+  setTimeout(() => { map.invalidateSize(); setSheet(SH.state); fitCity(false); }, 40);
 }
 
 if (!window.L) {
