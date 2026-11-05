@@ -453,7 +453,7 @@ table.pt .badge{min-width:24px;height:24px;font-size:11px}
 
     <div class="box">
       <h3>🔄 PC・スマホの同期（GitHub）</h3>
-      <div class="hint" style="margin:0 0 8px">この端末から変更を保存するには、GitHubのアクセストークンが必要です（端末ごとに1回）。トークンはパスワードで暗号化して、この端末にだけ保存します。</div>
+      <div class="hint" style="margin:0 0 8px">変更を保存・同期するには、GitHubのアクセストークンが必要です。「メンバーと共有」にすると、トークンはパスワードで暗号化してデータと一緒に保存され、パスワードを知っている人は入力なしで共同編集できます。</div>
       <div class="row">
         <div class="fld grow"><label>オーナー</label><input type="text" id="gOwner"></div>
         <div class="fld grow"><label>リポジトリ</label><input type="text" id="gRepo"></div>
@@ -463,9 +463,10 @@ table.pt .badge{min-width:24px;height:24px;font-size:11px}
         <div class="fld grow"><label>データファイル</label><input type="text" id="gPath"></div>
       </div>
       <div class="fld"><label>アクセストークン</label><input type="password" id="gToken" placeholder="github_pat_…（設定済みなら空欄のまま）" autocomplete="off"></div>
+      <label class="row" style="gap:8px;margin:-4px 0 10px;font-size:13px;font-weight:600"><input type="checkbox" id="gShare" checked> メンバーと共有する（全員がトークン入力なしで編集可能）</label>
       <div class="row">
         <button class="btn sm pri" id="gSave">保存して接続テスト</button>
-        <button class="btn sm dng" id="gClear">この端末のトークンを削除</button>
+        <button class="btn sm dng" id="gClear">トークンを削除</button>
       </div>
       <div class="hint" id="gStat"></div>
       <div class="hint"><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">トークンを作成 ↗</a>（Fine-grained：対象はこのリポジトリのみ、権限は Contents: Read and write）</div>
@@ -579,7 +580,7 @@ function normalize(d){
   d.v = 1;
   d.title = d.title || '出張マップ';
   d.cities = Array.isArray(d.cities) && d.cities.length ? d.cities : [{id:'c1', name:'都市', lat:21.0285, lng:105.854, zoom:13, memo:''}];
-  d.cities.forEach(c => { c.id = c.id || uid(); c.memo = c.memo || ''; c.zoom = c.zoom || 13; });
+  d.cities.forEach(c => { c.id = c.id || uid(); c.memo = c.memo || ''; c.zoom = c.zoom || 13; c.u = c.u || 0; });
   d.items = Array.isArray(d.items) ? d.items : [];
   d.items.forEach(i => {
     i.id = i.id || uid();
@@ -589,7 +590,12 @@ function normalize(d){
     i.lat = (typeof i.lat === 'number' && isFinite(i.lat)) ? i.lat : null;
     i.lng = (typeof i.lng === 'number' && isFinite(i.lng)) ? i.lng : null;
     i.ok = !!i.ok;
+    i.u = i.u || 0;
   });
+  d.del = d.del || {};      // item tombstones {id: ms}
+  d.cdel = d.cdel || {};    // city tombstones
+  d.orderTs = d.orderTs || 0;
+  d.metaTs = d.metaTs || 0;
   d.settings = d.settings || {};
   d.settings.display = d.settings.display || 'label';
   d.updatedAt = d.updatedAt || new Date(0).toISOString();
@@ -653,7 +659,49 @@ async function loadBlob(){
 }
 async function makeBlob(){
   const e = await encObj(S.key, S.data);
-  return { v:1, ts:S.data.updatedAt, kdf:'PBKDF2-SHA256', iter:S.iter, salt:S.salt, iv:e.iv, ct:e.ct };
+  const blob = { v:1, ts:S.data.updatedAt, kdf:'PBKDF2-SHA256', iter:S.iter, salt:S.salt, iv:e.iv, ct:e.ct };
+  if (S.sharedTok) { const t = await encObj(S.key, { token:S.sharedTok }); blob.tok = { iv:t.iv, ct:t.ct }; }
+  return blob;
+}
+async function readSharedTok(blob){
+  if (!blob || !blob.tok || blob.salt !== S.salt) return null;
+  try { return (await decObj(S.key, blob.tok)).token || null; } catch(e){ return null; }
+}
+function refreshToken(){ S.token = S.localTok || S.sharedTok || null; }
+
+/* ---------- merge (co-editing): item-level last-writer-wins + tombstones ---------- */
+function mergeData(local, remote){
+  const now = Date.now();
+  const out = JSON.parse(JSON.stringify(remote));
+  const maxMap = (a, b) => { const o = Object.assign({}, a); Object.keys(b || {}).forEach(k => { o[k] = Math.max(o[k] || 0, b[k]); }); return o; };
+  out.del = maxMap(remote.del, local.del);
+  out.cdel = maxMap(remote.cdel, local.cdel);
+  // cities
+  const cm = new Map(); remote.cities.forEach(c => cm.set(c.id, c));
+  local.cities.forEach(c => { const r = cm.get(c.id); if (!r || (c.u || 0) > (r.u || 0)) cm.set(c.id, c); });
+  const cOrder = remote.cities.map(c => c.id); local.cities.forEach(c => { if (!cOrder.includes(c.id)) cOrder.push(c.id); });
+  out.cities = cOrder.map(id => cm.get(id)).filter(c => c && !(out.cdel[c.id] && out.cdel[c.id] >= (c.u || 0)));
+  if (!out.cities.length) out.cities = remote.cities.length ? remote.cities : local.cities;
+  // items
+  const im = new Map(); remote.items.forEach(i => im.set(i.id, i));
+  local.items.forEach(i => { const r = im.get(i.id); if (!r || (i.u || 0) > (r.u || 0)) im.set(i.id, i); });
+  const primary = (local.orderTs || 0) > (remote.orderTs || 0) ? local.items : remote.items;
+  const secondary = primary === local.items ? remote.items : local.items;
+  const ids = primary.map(i => i.id);
+  secondary.forEach((i, k) => {
+    if (ids.includes(i.id)) return;
+    const prev = secondary[k - 1];
+    const at = prev ? ids.indexOf(prev.id) : -1;
+    if (at >= 0) ids.splice(at + 1, 0, i.id); else ids.push(i.id);
+  });
+  out.items = ids.map(id => im.get(id)).filter(i => i && !(out.del[i.id] && out.del[i.id] >= (i.u || 0)));
+  out.orderTs = Math.max(local.orderTs || 0, remote.orderTs || 0);
+  if ((local.metaTs || 0) > (remote.metaTs || 0)) { out.title = local.title; out.settings = local.settings; }
+  out.metaTs = Math.max(local.metaTs || 0, remote.metaTs || 0);
+  // prune tombstones older than 60 days
+  [out.del, out.cdel].forEach(t => Object.keys(t).forEach(k => { if (now - t[k] > 60 * 864e5) delete t[k]; }));
+  out.updatedAt = new Date().toISOString();
+  return normalize(out);
 }
 
 /* ---------- sync status ---------- */
@@ -676,25 +724,51 @@ function changed(opts={}){
   clearTimeout(S.saveT);
   S.saveT = setTimeout(persist, 1200);
 }
+function tokenError(e){
+  if (e.status === 401) return 'トークンが無効か期限切れです。⚙ 設定 → 同期 で新しいトークンを登録してください';
+  if (e.status === 403 || e.status === 404) return 'トークンに書き込み権限がありません（Contents: Read and write）';
+  return 'GitHubへの保存に失敗しました: ' + e.message;
+}
 async function persist(){
   if (S.busy) { clearTimeout(S.saveT); S.saveT = setTimeout(persist, 800); return; }
   S.busy = true;
   try {
-    const blob = await makeBlob();
-    LS.set('tm_blob', JSON.stringify(blob));
-    if (!S.token) { S.dirty = false; setSync('local'); return; }
-    try {
-      S.sha = await ghPut(blob, S.sha);
-    } catch(e) {
-      if (e.status === 409 || e.status === 422) {
-        const g = await ghGet(); S.sha = g && g.sha;
-        S.sha = await ghPut(blob, S.sha);
-      } else throw e;
+    if (!S.token) {
+      LS.set('tm_blob', JSON.stringify(await makeBlob()));
+      S.dirty = false; setSync('local'); return;
     }
-    S.remoteTs = blob.ts; S.dirty = false; setSync('ok');
+    for (let attempt = 0; attempt < 4; attempt++) {
+      // merge in other members' changes first
+      const g = await ghGet();
+      if (g) {
+        let rkey = S.key;
+        if (g.blob.salt !== S.salt) {
+          if (S.oldSalt && g.blob.salt === S.oldSalt) rkey = S.oldKey;
+          else { relock('パスワードが変更されました。新しいパスワードを入力してください'); return; }
+        }
+        if (g.blob.ts !== S.remoteTs) {
+          const remote = normalize(await decObj(rkey, g.blob));
+          S.data = mergeData(S.data, remote);
+          if (rkey === S.key) { const st = await readSharedTok(g.blob); if (st && !S.sharedTok) { S.sharedTok = st; refreshToken(); } }
+          renderAll();
+        }
+      }
+      const blob = await makeBlob();
+      try {
+        S.sha = await ghPut(blob, g ? g.sha : null);
+        S.remoteTs = blob.ts; S.dirty = false; S.oldKey = null; S.oldSalt = null;
+        LS.set('tm_blob', JSON.stringify(blob));
+        setSync('ok');
+        return;
+      } catch(e) {
+        if ((e.status === 409 || e.status === 422) && attempt < 3) { await new Promise(r => setTimeout(r, 300 + Math.random() * 500)); continue; }
+        throw e;
+      }
+    }
   } catch(e) {
     setSync('err', '同期エラー'); console.error(e);
-    toast('GitHubへの保存に失敗しました: ' + e.message, 4000);
+    LS.set('tm_blob', JSON.stringify(await makeBlob()));
+    toast(tokenError(e), 5000);
   } finally { S.busy = false; }
 }
 async function pull(silent){
@@ -703,14 +777,16 @@ async function pull(silent){
     const g = await ghGet(); if (!g) return;
     S.sha = g.sha;
     if (g.blob.salt !== S.salt) { relock('パスワードが変更されました。新しいパスワードを入力してください'); return; }
-    if (String(g.blob.ts||'') > String(S.remoteTs||'') && String(g.blob.ts||'') > String(S.data.updatedAt||'')) {
+    if (g.blob.ts !== S.remoteTs && String(g.blob.ts || '') > String(S.data.updatedAt || '')) {
       S.data = normalize(await decObj(S.key, g.blob));
       S.remoteTs = g.blob.ts;
       LS.set('tm_blob', JSON.stringify(g.blob));
       renderAll();
-      if (!silent) toast('他の端末の変更を反映しました');
-    }
-    if (S.token) setSync('ok');
+      if (!silent) toast('他の人・端末の変更を反映しました');
+    } else if (g.blob.ts !== S.remoteTs) { S.remoteTs = g.blob.ts; }
+    const st = await readSharedTok(g.blob);
+    if (st !== S.sharedTok) { const had = !!S.token; S.sharedTok = st; refreshToken(); if (!had && S.token) startPolling(); }
+    setSync(S.token ? 'ok' : 'local');
   } catch(e) { /* offline etc. */ }
 }
 function startPolling(){
@@ -762,12 +838,14 @@ async function openWith(key, got){
   S.key = key; S.salt = got.blob.salt; S.iter = got.blob.iter || ITER;
   S.data = normalize(data); S.sha = got.sha; S.remoteTs = got.blob.ts || ''; S.dirty = false;
   LS.set('tm_blob', JSON.stringify(got.blob));
-  // token
-  S.token = null;
+  // tokens: this device's own token (optional) + token shared inside the encrypted data
+  S.localTok = null;
   try {
     const t = JSON.parse(LS.get('tm_tok') || 'null');
-    if (t && t.salt === S.salt) S.token = (await decObj(S.key, t)).token;
+    if (t && t.salt === S.salt) S.localTok = (await decObj(S.key, t)).token;
   } catch(e) {}
+  S.sharedTok = await readSharedTok(got.blob);
+  refreshToken();
   $('#lock').classList.add('hidden');
   $('#app').classList.remove('hidden');
   startApp();
@@ -775,7 +853,7 @@ async function openWith(key, got){
   startPolling();
 }
 function relock(msg){
-  S.key = null; S.data = null; S.token = null; clearInterval(S.pollT);
+  S.key = null; S.data = null; S.token = null; S.localTok = null; S.sharedTok = null; clearInterval(S.pollT);
   closeSheets();
   $('#app').classList.add('hidden'); $('#lock').classList.remove('hidden');
   LS.del('tm_key');
@@ -784,10 +862,10 @@ function relock(msg){
   REMOTE = null; boot();
 }
 async function saveToken(token){
-  if (!token) { LS.del('tm_tok'); S.token = null; return; }
+  if (!token) { LS.del('tm_tok'); S.localTok = null; refreshToken(); return; }
   const e = await encObj(S.key, {token});
   LS.set('tm_tok', JSON.stringify({ salt:S.salt, iv:e.iv, ct:e.ct }));
-  S.token = token;
+  S.localTok = token; refreshToken();
 }
 
 /* =========================================================
@@ -917,8 +995,9 @@ function badgeMap(items){
   });
   return out;
 }
+function curDisplay(){ return LS.get('tm_disp') || S.data.settings.display || 'label'; }
 function names(it){
-  const d = S.data.settings.display, label = (it.label || '').trim(), name = (it.name || '').trim();
+  const d = curDisplay(), label = (it.label || '').trim(), name = (it.name || '').trim();
   if (d === 'name') return { main: name || label || '(名称未設定)', sub: (label && label !== name) ? label : '' };
   if (d === 'both') return { main: label && name && label !== name ? `${label}（${name}）` : (label || name || '(名称未設定)'), sub:'' };
   return { main: label || name || '(名称未設定)', sub: (label && name && label !== name) ? name : '' };
@@ -945,7 +1024,7 @@ function renderHeader(){
 function renderList(){
   const ul = $('#list'); ul.innerHTML = '';
   const items = cityItems(), badges = badgeMap(items);
-  $('#dispSel').value = S.data.settings.display;
+  $('#dispSel').value = curDisplay();
   const c = curCity();
   $('#cityMemoTitle').textContent = c.name + 'のメモ';
   if (document.activeElement !== $('#cityMemo')) $('#cityMemo').value = c.memo || '';
@@ -1208,6 +1287,7 @@ function reorderCity(ids){
   const mine = ids.map(byId).filter(Boolean);
   cityItems().forEach(i => { if (!ids.includes(i.id)) mine.push(i); });
   S.data.items = others.concat(mine);
+  S.data.orderTs = Date.now();
   changed();
 }
 
@@ -1367,10 +1447,11 @@ $('#itSave').onclick = () => {
   if (!name && !label) { toast('訪問先名か施設名を入力してください'); return; }
   const vals = { name, label, addr:$('#itAddr').value.trim(), memo:$('#itMemo').value.trim(), cat:$('#itCat').value, lat:U.form.lat, lng:U.form.lng, ok:$('#itOk').checked && U.form.lat != null, gurl:U.form.gurl || '' };
   let it;
+  vals.u = Date.now();
   if (U.editId) {
     it = byId(U.editId); Object.assign(it, vals);
     const newCity = $('#itCity').value;
-    if (newCity !== it.city) { S.data.items = S.data.items.filter(x => x !== it); it.city = newCity; S.data.items.push(it); }
+    if (newCity !== it.city) { S.data.items = S.data.items.filter(x => x !== it); it.city = newCity; S.data.items.push(it); S.data.orderTs = Date.now(); }
   } else {
     it = Object.assign({ id:uid(), city:U.city }, vals);
     S.data.items.push(it);
@@ -1383,6 +1464,7 @@ $('#itSave').onclick = () => {
 $('#itDel').onclick = () => {
   const b = $('#itDel');
   if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'もう一度押すと削除'; setTimeout(() => { b.dataset.armed = ''; b.textContent = '削除'; }, 3000); return; }
+  S.data.del[U.editId] = Date.now();
   S.data.items = S.data.items.filter(x => x.id !== U.editId);
   closeSheets(); changed(); toast('削除しました');
 };
@@ -1532,7 +1614,9 @@ function openSettings(){
   const c = repoCfg();
   $('#gOwner').value = c.owner || ''; $('#gRepo').value = c.repo || ''; $('#gBranch').value = c.branch; $('#gPath').value = c.path;
   $('#gToken').value = '';
-  $('#gStat').textContent = S.token ? '✅ この端末はトークン登録済み（自動同期中）' : '⚠ この端末はトークン未登録（変更はこの端末内にのみ保存されます）';
+  $('#gStat').textContent = S.localTok ? '✅ この端末専用のトークンで同期中' + (S.sharedTok ? '（共有トークンもあり）' : '')
+    : S.sharedTok ? '✅ 共有トークンで同期中（パスワードを知っているメンバー全員が編集できます）'
+    : '⚠ トークン未登録（変更はこの端末内にのみ保存されます）';
   renderCityList();
   openSheet('#shSet');
 }
@@ -1563,38 +1647,43 @@ function renderCityList(){
       <span style="font-size:12px;color:var(--sub);white-space:nowrap">${n}件</span>
       <button class="btn sm">名前変更</button><button class="btn sm dng" ${n || S.data.cities.length < 2 ? 'disabled' : ''}>削除</button>`;
     const [inp] = li.getElementsByTagName('input'), [rn, del] = li.getElementsByTagName('button');
-    rn.onclick = () => { const v = inp.value.trim(); if (v) { c.name = v; changed(); toast('変更しました'); } };
-    del.onclick = () => { S.data.cities = S.data.cities.filter(x => x !== c); if (U.city === c.id) U.city = S.data.cities[0].id; changed(); renderCityList(); };
+    rn.onclick = () => { const v = inp.value.trim(); if (v) { c.name = v; c.u = Date.now(); changed(); toast('変更しました'); } };
+    del.onclick = () => { S.data.cdel[c.id] = Date.now(); S.data.cities = S.data.cities.filter(x => x !== c); if (U.city === c.id) U.city = S.data.cities[0].id; changed(); renderCityList(); };
     ul.appendChild(li);
   });
 }
 $('#bSettings').onclick = openSettings;
-$('#sTitleSave').onclick = () => { const v = $('#sTitle').value.trim(); if (v) { S.data.title = v; changed(); toast('変更しました'); } };
+$('#sTitleSave').onclick = () => { const v = $('#sTitle').value.trim(); if (v) { S.data.title = v; S.data.metaTs = Date.now(); changed(); toast('変更しました'); } };
 $('#newCityBtn').onclick = () => {
   const name = $('#newCity').value.trim(), p = parseLoc($('#newCityPos').value);
   if (!name) { toast('都市名を入力してください'); return; }
   if (!p || p.short) { toast('中心座標を「緯度, 経度」で入力してください'); return; }
-  const c = { id:uid(), name, lat:p.lat, lng:p.lng, zoom:13, memo:'' };
+  const c = { id:uid(), name, lat:p.lat, lng:p.lng, zoom:13, memo:'', u:Date.now() };
   S.data.cities.push(c); $('#newCity').value = ''; $('#newCityPos').value = '';
   changed(); renderCityList(); toast(name + ' を追加しました');
 };
 $('#gSave').onclick = async () => {
   const cfg = { owner:$('#gOwner').value.trim(), repo:$('#gRepo').value.trim(), branch:$('#gBranch').value.trim() || 'main', path:$('#gPath').value.trim() || 'data.enc.json' };
   LS.set('tm_repo', JSON.stringify(cfg));
-  const tok = $('#gToken').value.trim();
+  const tok = $('#gToken').value.trim(), share = $('#gShare').checked;
   const st = $('#gStat'); st.textContent = '接続テスト中…';
   const prev = S.token;
   if (tok) S.token = tok;
   try {
     const c = repoCfg();
     const r = await fetch(`https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}`, { headers:ghHeaders() });
-    if (!r.ok) throw new Error(r.status === 404 ? 'リポジトリが見つからないか、トークンに権限がありません' : 'HTTP ' + r.status);
+    if (!r.ok) throw new Error(r.status === 404 ? 'リポジトリが見つからないか、トークンに権限がありません' : r.status === 401 ? 'トークンが無効か期限切れです' : 'HTTP ' + r.status);
     const j = await r.json();
     if (S.token && !(j.permissions && j.permissions.push)) throw new Error('トークンに書き込み権限（Contents: Read and write）がありません');
-    if (tok) await saveToken(tok);
+    if (tok) {
+      if (share) { S.sharedTok = tok; await saveToken(null); }
+      else await saveToken(tok);
+    }
+    refreshToken();
     $('#gToken').value = '';
-    const g = await ghGet(); S.sha = g && g.sha;
-    st.textContent = S.token ? '✅ 接続OK。この端末の変更は自動で同期されます' : '✅ 接続OK（トークン未登録のため閲覧のみ）';
+    st.textContent = !S.token ? '✅ 接続OK（トークン未登録のため閲覧のみ）'
+      : S.sharedTok && !S.localTok ? '✅ 接続OK。共有トークンを保存しました（メンバーは入力不要で編集できます）'
+      : '✅ 接続OK。この端末の変更は自動で同期されます';
     startPolling();
     if (S.token) { S.data.updatedAt = new Date().toISOString(); S.dirty = true; await persist(); }
   } catch(e) {
@@ -1602,16 +1691,26 @@ $('#gSave').onclick = async () => {
     st.textContent = '❌ ' + e.message;
   }
 };
-$('#gClear').onclick = async () => { await saveToken(null); clearInterval(S.pollT); setSync('local'); $('#gStat').textContent = 'トークンを削除しました'; };
+$('#gClear').onclick = async () => {
+  const st = $('#gStat');
+  if (S.sharedTok) {
+    const w = S.token;
+    S.sharedTok = null; S.token = w;               // write once more (without the shared token)
+    S.data.updatedAt = new Date().toISOString(); S.dirty = true;
+    await persist();
+  }
+  await saveToken(null); refreshToken(); clearInterval(S.pollT); setSync('local');
+  st.textContent = 'トークンを削除しました（共有トークンも削除済み）。GitHub側でもトークンを Delete してください';
+};
 $('#npSave').onclick = async () => {
   const a = $('#np1').value, b = $('#np2').value;
   if (a.length < 8) { toast('8文字以上にしてください'); return; }
   if (a !== b) { toast('2つの入力が一致しません'); return; }
   const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
   const key = await deriveKey(a, salt, ITER);
-  const tok = S.token;
+  S.oldKey = S.key; S.oldSalt = S.salt;
   S.key = key; S.salt = salt; S.iter = ITER;
-  if (tok) await saveToken(tok);
+  if (S.localTok) await saveToken(S.localTok);
   if (LS.get('tm_key')) LS.set('tm_key', JSON.stringify({ salt, k:b64(await crypto.subtle.exportKey('raw', key)) }));
   $('#np1').value = ''; $('#np2').value = '';
   S.data.updatedAt = new Date().toISOString(); S.dirty = true;
@@ -1624,8 +1723,17 @@ $('#dCopy').onclick = async () => {
 };
 $('#dShowImp').onclick = () => $('#dImpBox').classList.toggle('hidden');
 $('#dImpBtn').onclick = () => {
-  try { const d = normalize(JSON.parse($('#dImp').value)); S.data = d; U.city = d.cities[0].id; changed(); fitCity(); toast('復元しました'); $('#dImp').value = ''; }
-  catch(e) { toast('JSONの形式が正しくありません'); }
+  try {
+    const d = normalize(JSON.parse($('#dImp').value)), now = Date.now();
+    const keep = new Set(d.items.map(i => i.id));
+    S.data.items.forEach(i => { if (!keep.has(i.id)) d.del[i.id] = now; });
+    const keepC = new Set(d.cities.map(c => c.id));
+    S.data.cities.forEach(c => { if (!keepC.has(c.id)) d.cdel[c.id] = now; });
+    d.items.forEach(i => { i.u = now; delete d.del[i.id]; });
+    d.cities.forEach(c => { c.u = now; delete d.cdel[c.id]; });
+    d.orderTs = now; d.metaTs = now;
+    S.data = d; U.city = d.cities[0].id; changed(); fitCity(); toast('復元しました'); $('#dImp').value = '';
+  } catch(e) { toast('JSONの形式が正しくありません'); }
 };
 $('#lockNow').onclick = () => { LS.del('tm_key'); relock('ロックしました'); };
 
@@ -1650,11 +1758,11 @@ document.addEventListener('click', e => {
 function openMenu(){
   closeSheets();
   $('#menuTitle').textContent = S.data.title;
-  document.querySelectorAll('#menuDisp button').forEach(b => b.classList.toggle('on', b.dataset.v === S.data.settings.display));
+  document.querySelectorAll('#menuDisp button').forEach(b => b.classList.toggle('on', b.dataset.v === curDisplay()));
   openSheet('#shMenu');
 }
 document.querySelectorAll('#menuDisp button').forEach(b => b.onclick = () => {
-  S.data.settings.display = b.dataset.v; changed();
+  LS.set('tm_disp', b.dataset.v); renderAll();
   document.querySelectorAll('#menuDisp button').forEach(x => x.classList.toggle('on', x === b));
 });
 document.querySelectorAll('[data-sort]').forEach(b => b.onclick = () => {
@@ -1675,7 +1783,7 @@ function applySort(v){
 }
 $('#bFit').onclick = () => fitCity(true);
 $('#bTiles').onclick = () => setTiles(TILE_ORDER[(TILE_ORDER.indexOf(U.tiles) + 1) % TILE_ORDER.length]);
-$('#dispSel').onchange = () => { S.data.settings.display = $('#dispSel').value; changed(); };
+$('#dispSel').onchange = () => { LS.set('tm_disp', $('#dispSel').value); renderAll(); };
 $('#sortSel').onchange = () => {
   const v = $('#sortSel').value; $('#sortSel').value = '';
   applySort(v);
@@ -1683,7 +1791,7 @@ $('#sortSel').onchange = () => {
 let memoT;
 $('#cityMemo').addEventListener('input', () => {
   clearTimeout(memoT);
-  memoT = setTimeout(() => { curCity().memo = $('#cityMemo').value; changed({noRender:true}); $('#cityMemoPrev').textContent = curCity().memo ? '― ' + curCity().memo.split('\n')[0].slice(0,24) : ''; }, 600);
+  memoT = setTimeout(() => { curCity().memo = $('#cityMemo').value; curCity().u = Date.now(); changed({noRender:true}); $('#cityMemoPrev').textContent = curCity().memo ? '― ' + curCity().memo.split('\n')[0].slice(0,24) : ''; }, 600);
 });
 window.addEventListener('hashchange', () => {
   const c = cityFromHash();
