@@ -577,10 +577,12 @@ const U = { city:null, sel:null, editId:null, form:null, picking:false, tiles:'o
 
 function normalize(d){
   d = d || {};
+  // data saved by the previous version has no per-item timestamps: treat everything as written at updatedAt
+  const legacyTs = Date.parse(d.updatedAt || '') || 0;
   d.v = 1;
   d.title = d.title || '出張マップ';
   d.cities = Array.isArray(d.cities) && d.cities.length ? d.cities : [{id:'c1', name:'都市', lat:21.0285, lng:105.854, zoom:13, memo:''}];
-  d.cities.forEach(c => { c.id = c.id || uid(); c.memo = c.memo || ''; c.zoom = c.zoom || 13; c.u = c.u || 0; });
+  d.cities.forEach(c => { c.id = c.id || uid(); c.memo = c.memo || ''; c.zoom = c.zoom || 13; if (c.u == null) c.u = legacyTs; });
   d.items = Array.isArray(d.items) ? d.items : [];
   d.items.forEach(i => {
     i.id = i.id || uid();
@@ -590,12 +592,12 @@ function normalize(d){
     i.lat = (typeof i.lat === 'number' && isFinite(i.lat)) ? i.lat : null;
     i.lng = (typeof i.lng === 'number' && isFinite(i.lng)) ? i.lng : null;
     i.ok = !!i.ok;
-    i.u = i.u || 0;
+    if (i.u == null) i.u = legacyTs;
   });
   d.del = d.del || {};      // item tombstones {id: ms}
   d.cdel = d.cdel || {};    // city tombstones
-  d.orderTs = d.orderTs || 0;
-  d.metaTs = d.metaTs || 0;
+  if (d.orderTs == null) d.orderTs = legacyTs;
+  if (d.metaTs == null) d.metaTs = legacyTs;
   d.settings = d.settings || {};
   d.settings.display = d.settings.display || 'label';
   d.updatedAt = d.updatedAt || new Date(0).toISOString();
@@ -678,14 +680,25 @@ function mergeData(local, remote){
   out.cdel = maxMap(remote.cdel, local.cdel);
   // cities
   const cm = new Map(); remote.cities.forEach(c => cm.set(c.id, c));
-  local.cities.forEach(c => { const r = cm.get(c.id); if (!r || (c.u || 0) > (r.u || 0)) cm.set(c.id, c); });
+  const lNew = String(local.updatedAt || '') > String(remote.updatedAt || '');
+  local.cities.forEach(c => { const r = cm.get(c.id); if (!r || (c.u || 0) > (r.u || 0) || (!(c.u || 0) && !(r.u || 0) && lNew)) cm.set(c.id, c); });
   const cOrder = remote.cities.map(c => c.id); local.cities.forEach(c => { if (!cOrder.includes(c.id)) cOrder.push(c.id); });
   out.cities = cOrder.map(id => cm.get(id)).filter(c => c && !(out.cdel[c.id] && out.cdel[c.id] >= (c.u || 0)));
   if (!out.cities.length) out.cities = remote.cities.length ? remote.cities : local.cities;
   // items
+  // documents saved by older versions have no per-item stamps (u=0): fall back to whole-document time
+  const localNewer = String(local.updatedAt || '') > String(remote.updatedAt || '');
   const im = new Map(); remote.items.forEach(i => im.set(i.id, i));
-  local.items.forEach(i => { const r = im.get(i.id); if (!r || (i.u || 0) > (r.u || 0)) im.set(i.id, i); });
-  const primary = (local.orderTs || 0) > (remote.orderTs || 0) ? local.items : remote.items;
+  local.items.forEach(i => {
+    const r = im.get(i.id);
+    if (!r || (i.u || 0) > (r.u || 0) || (!(i.u || 0) && !(r.u || 0) && localNewer)) im.set(i.id, i);
+  });
+  if (localNewer) {   // legacy deletions (no tombstone): unstamped item only on the remote side
+    const lids = new Set(local.items.map(i => i.id));
+    remote.items.forEach(i => { if (!lids.has(i.id) && !(i.u || 0)) im.delete(i.id); });
+  }
+  const bothUnordered = !(local.orderTs || 0) && !(remote.orderTs || 0);
+  const primary = (bothUnordered ? localNewer : (local.orderTs || 0) > (remote.orderTs || 0)) ? local.items : remote.items;
   const secondary = primary === local.items ? remote.items : local.items;
   const ids = primary.map(i => i.id);
   secondary.forEach((i, k) => {
@@ -694,6 +707,7 @@ function mergeData(local, remote){
     const at = prev ? ids.indexOf(prev.id) : -1;
     if (at >= 0) ids.splice(at + 1, 0, i.id); else ids.push(i.id);
   });
+  if (lNew && !(local.metaTs || 0) && !(remote.metaTs || 0)) { out.title = local.title; out.settings = local.settings; }
   out.items = ids.map(id => im.get(id)).filter(i => i && !(out.del[i.id] && out.del[i.id] >= (i.u || 0)));
   out.orderTs = Math.max(local.orderTs || 0, remote.orderTs || 0);
   if ((local.metaTs || 0) > (remote.metaTs || 0)) { out.title = local.title; out.settings = local.settings; }
@@ -748,6 +762,11 @@ async function persist(){
         }
         if (g.blob.ts !== S.remoteTs) {
           const remote = normalize(await decObj(rkey, g.blob));
+          if (S.legacyLocal) {
+            const now = Date.now(), li = new Set(S.data.items.map(i => i.id)), lc = new Set(S.data.cities.map(c => c.id));
+            remote.items.forEach(i => { if (!li.has(i.id)) S.data.del[i.id] = now; });
+            remote.cities.forEach(c => { if (!lc.has(c.id)) S.data.cdel[c.id] = now; });
+          }
           S.data = mergeData(S.data, remote);
           if (rkey === S.key) { const st = await readSharedTok(g.blob); if (st && !S.sharedTok) { S.sharedTok = st; refreshToken(); } }
           renderAll();
@@ -756,7 +775,7 @@ async function persist(){
       const blob = await makeBlob();
       try {
         S.sha = await ghPut(blob, g ? g.sha : null);
-        S.remoteTs = blob.ts; S.dirty = false; S.oldKey = null; S.oldSalt = null;
+        S.remoteTs = blob.ts; S.dirty = false; S.oldKey = null; S.oldSalt = null; S.legacyLocal = false;
         LS.set('tm_blob', JSON.stringify(blob));
         setSync('ok');
         return;
@@ -835,6 +854,8 @@ $('#lockForm').addEventListener('submit', async e => {
 });
 async function openWith(key, got){
   const data = await decObj(key, got.blob);  // throws if wrong
+  // edits saved only on this device by the previous version (no tombstones): this device's copy wins on first sync
+  S.legacyLocal = got.src === 'cache' && !('orderTs' in data);
   S.key = key; S.salt = got.blob.salt; S.iter = got.blob.iter || ITER;
   S.data = normalize(data); S.sha = got.sha; S.remoteTs = got.blob.ts || ''; S.dirty = false;
   LS.set('tm_blob', JSON.stringify(got.blob));
