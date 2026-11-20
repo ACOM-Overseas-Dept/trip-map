@@ -561,11 +561,12 @@ table.pt .badge{min-width:24px;height:24px;font-size:11px}
   <div class="sh-h"><h2>⚙ 設定</h2><button class="x" data-close>×</button></div>
   <div class="sh-b">
     <div class="box">
-      <h3>🔄 PC・スマホの同期（GitHub）</h3>
-      <div class="hint" style="margin:0 0 8px">変更を保存・同期するには、GitHubのアクセストークンが必要です。「メンバーと共有」にすると、トークンはパスワードで暗号化してデータと一緒に保存され、パスワードを知っている人は入力なしで共同編集できます。</div>
+      <h3>🔄 同期（GitHub）</h3>
+      <div id="locBox" class="hint" style="margin:0 0 10px;padding:8px 10px;border-radius:8px;background:#fff"></div>
+      <div class="hint" style="margin:0 0 8px">変更を保存・同期するには、<b>データ用リポジトリ</b>にだけ書き込めるアクセストークンが必要です。「メンバーと共有」にすると、トークンはパスワードで暗号化してデータと一緒に保存され、パスワードを知っている人は入力なしで共同編集できます。</div>
       <div class="row">
-        <div class="fld grow"><label>オーナー</label><input type="text" id="gOwner"></div>
-        <div class="fld grow"><label>リポジトリ</label><input type="text" id="gRepo"></div>
+        <div class="fld grow"><label>データ用リポジトリのオーナー</label><input type="text" id="gOwner"></div>
+        <div class="fld grow"><label>データ用リポジトリ名</label><input type="text" id="gRepo"></div>
       </div>
       <div class="row">
         <div class="fld grow"><label>ブランチ</label><input type="text" id="gBranch"></div>
@@ -578,7 +579,7 @@ table.pt .badge{min-width:24px;height:24px;font-size:11px}
         <button class="btn sm dng" id="gClear">トークンを削除</button>
       </div>
       <div class="hint" id="gStat"></div>
-      <div class="hint"><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">トークンを作成 ↗</a>（Fine-grained：対象はこのリポジトリのみ、権限は Contents: Read and write）</div>
+      <div class="hint"><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">トークンを作成 ↗</a>（Fine-grained：対象は<b id="gTarget">データ用リポジトリ</b>のみ、権限は Contents: Read and write）</div>
     </div>
 
     <div class="box">
@@ -724,25 +725,32 @@ function normalize(d){
 /* =========================================================
    GitHub storage
    ========================================================= */
-function repoCfg(){
-  let c = {};
-  try { c = JSON.parse(LS.get('tm_repo') || '{}'); } catch(e){}
-  if (!c.owner) {
-    const h = location.hostname;
-    if (h.endsWith('.github.io')) {
-      c.owner = h.split('.')[0];
-      const seg = location.pathname.split('/').filter(Boolean)[0];
-      c.repo = (seg && !seg.includes('.')) ? seg : h;
-    }
-  }
-  c.branch = c.branch || 'main';
-  c.path = c.path || 'data.enc.json';
-  return c;
+/* Site (index.html) and data live in separate repositories:
+   site  = <owner>.github.io/<repo>            → only index.html (the shared token cannot touch it)
+   data  = <owner>/<repo>-data                 → data.enc.json + files/ (encrypted)
+   Older setups kept data next to index.html ("site" location) until migrated. */
+function siteCfg(){
+  const h = location.hostname;
+  if (!h.endsWith('.github.io')) return null;
+  const seg = location.pathname.split('/').filter(Boolean)[0];
+  return { owner:h.split('.')[0], repo:(seg && !seg.includes('.')) ? seg : h };
 }
+function dataCfg(){
+  let o = {}; try { o = JSON.parse(LS.get('tm_repo') || '{}'); } catch(e){}
+  const site = siteCfg();
+  const isSite = site && o.owner === site.owner && o.repo === site.repo;   // old setting that pointed at the site repo
+  if (o.owner && o.repo && !isSite) return { owner:o.owner, repo:o.repo, branch:o.branch || 'main', path:o.path || 'data.enc.json' };
+  if (site) return { owner:site.owner, repo:site.repo + '-data', branch:'main', path:'data.enc.json' };
+  return { owner:o.owner, repo:o.repo, branch:o.branch || 'main', path:o.path || 'data.enc.json' };
+}
+function legacyCfg(){ const site = siteCfg(); return site ? { owner:site.owner, repo:site.repo, branch:'main', path:'data.enc.json' } : null; }
+function repoCfg(){ return S.loc === 'site' && legacyCfg() ? legacyCfg() : dataCfg(); }
+const repoApi = c => `https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}`;
+const rawUrl = (c, path) => `https://raw.githubusercontent.com/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/${encodeURIComponent(c.branch)}/${path}`;
 function apiUrl(c){ return `https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/contents/${c.path.split('/').map(encodeURIComponent).join('/')}`; }
 function ghHeaders(){ const h = {'Accept':'application/vnd.github+json'}; if (S.token) h.Authorization = 'Bearer ' + S.token; return h; }
-async function ghGet(){
-  const c = repoCfg();
+async function ghGet(c){
+  c = c || repoCfg();
   if (!c.owner || !c.repo) throw Object.assign(new Error('リポジトリ未設定'), {code:'norepo'});
   const r = await fetch(apiUrl(c) + '?ref=' + encodeURIComponent(c.branch) + '&_=' + Date.now(), {headers:ghHeaders(), cache:'no-store'});
   if (r.status === 404) return null;
@@ -750,8 +758,8 @@ async function ghGet(){
   const j = await r.json();
   return { blob: JSON.parse(atob(String(j.content).replace(/\s/g,''))), sha: j.sha, src:'api' };
 }
-async function ghPut(blob, sha){
-  const c = repoCfg();
+async function ghPut(blob, sha, c){
+  c = c || repoCfg();
   const body = { message: 'update trip map data', content: btoa(JSON.stringify(blob)), branch: c.branch };
   if (sha) body.sha = sha;
   const r = await fetch(apiUrl(c), { method:'PUT', headers: Object.assign({'Content-Type':'application/json'}, ghHeaders()), body: JSON.stringify(body) });
@@ -759,16 +767,28 @@ async function ghPut(blob, sha){
   const j = await r.json();
   return j.content && j.content.sha;
 }
-async function fetchStatic(){
-  const r = await fetch(repoCfg().path + '?_=' + Date.now(), {cache:'no-store'});
+async function fetchStatic(url){
+  const r = await fetch((url || 'data.enc.json') + (String(url || '').includes('?') ? '&' : '?') + '_=' + Date.now(), {cache:'no-store'});
   if (!r.ok) throw new Error('static ' + r.status);
   return { blob: await r.json(), sha:null, src:'static' };
 }
 function cachedBlob(){ try { const b = JSON.parse(LS.get('tm_blob') || 'null'); return b ? {blob:b, sha:null, src:'cache'} : null; } catch(e){ return null; } }
 async function loadBlob(){
-  const cands = [];
-  try { const g = await ghGet(); if (g) cands.push(g); } catch(e){}
-  if (!cands.length) { try { cands.push(await fetchStatic()); } catch(e){} }
+  const cands = [], dc = dataCfg(), lc = legacyCfg();
+  let loc = null;
+  // 1) data repository (normal)
+  if (dc.owner && dc.repo) {
+    try { const g = await ghGet(dc); if (g) { cands.push(g); loc = 'data'; } }
+    catch(e) { try { cands.push(await fetchStatic(rawUrl(dc, dc.path))); loc = 'data'; } catch(_){} }
+  }
+  // 2) not migrated yet: data still next to index.html
+  if (!loc && lc) {
+    try { const g = await ghGet(lc); if (g) { cands.push(g); loc = 'site'; } } catch(e){}
+    if (!loc) { try { cands.push(await fetchStatic()); loc = 'site'; } catch(e){} }
+  }
+  // 3) local preview / other hosting
+  if (!loc && !lc) { try { cands.push(await fetchStatic()); loc = 'data'; } catch(e){} }
+  S.loc = loc || (lc ? 'site' : 'data');
   const c = cachedBlob(); if (c) cands.push(c);
   if (!cands.length) return null;
   cands.sort((a,b) => String(b.blob.ts||'').localeCompare(String(a.blob.ts||'')));
@@ -883,6 +903,7 @@ async function persist(){
       LS.set('tm_blob', JSON.stringify(await makeBlob()));
       S.dirty = false; setSync('local'); return;
     }
+    await checkMoved();
     for (let attempt = 0; attempt < 4; attempt++) {
       // merge in other members' changes first
       const g = await ghGet();
@@ -925,6 +946,7 @@ async function persist(){
 async function pull(silent){
   if (!S.key || S.dirty || S.busy) return;
   try {
+    if (await checkMoved()) S.remoteTs = '';
     const g = await ghGet(); if (!g) return;
     S.sha = g.sha;
     if (g.blob.salt !== S.salt) { relock('パスワードが変更されました。新しいパスワードを入力してください'); return; }
@@ -1689,24 +1711,25 @@ async function decBytes(kB64, buf){
   const key = await crypto.subtle.importKey('raw', unb64(kB64), 'AES-GCM', false, ['decrypt']);
   return crypto.subtle.decrypt({name:'AES-GCM', iv:u.slice(0, 12)}, key, u.slice(12));
 }
-async function ghPutFile(path, bytes){
-  const c = repoCfg();
-  const url = `https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/contents/${path}`;
+async function ghPutFile(path, bytes, c){
+  c = c || repoCfg();
+  const url = `${repoApi(c)}/contents/${path}`;
   const r = await fetch(url, { method:'PUT', headers:Object.assign({'Content-Type':'application/json'}, ghHeaders()), body:JSON.stringify({ message:'add file', content:b64(bytes), branch:c.branch }) });
   if (!r.ok) { let m = ''; try { m = (await r.json()).message || ''; } catch(e){} throw Object.assign(new Error('GitHub ' + r.status + ' ' + m), {status:r.status}); }
 }
-async function ghGetFile(path){
-  // GitHub Pages copy first (no API limits); falls back to the API right after upload
-  try { const r = await fetch(path, {cache:'force-cache'}); if (r.ok) { const b = await r.arrayBuffer(); if (b.byteLength > 12) return b; } } catch(e){}
-  const c = repoCfg();
+async function ghGetFile(path, c){
+  c = c || repoCfg();
+  const legacy = legacyCfg(), isLegacy = legacy && c.owner === legacy.owner && c.repo === legacy.repo;
+  // static copy first (no API limits): raw.githubusercontent for the data repo, GitHub Pages for the old layout
+  try { const r = await fetch(isLegacy ? path : rawUrl(c, path), {cache:'force-cache'}); if (r.ok) { const b = await r.arrayBuffer(); if (b.byteLength > 12) return b; } } catch(e){}
   const h = ghHeaders(); h.Accept = 'application/vnd.github.raw';
-  const r = await fetch(`https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/contents/${path}?ref=${encodeURIComponent(c.branch)}`, { headers:h });
+  const r = await fetch(`${repoApi(c)}/contents/${path}?ref=${encodeURIComponent(c.branch)}`, { headers:h });
   if (!r.ok) throw new Error('ファイルを取得できません（' + r.status + '）');
   return r.arrayBuffer();
 }
 async function ghDeleteFile(path){
   try {
-    const c = repoCfg(), base = `https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/contents/${path}`;
+    const c = repoCfg(), base = `${repoApi(c)}/contents/${path}`;
     const g = await fetch(base + '?ref=' + encodeURIComponent(c.branch), { headers:ghHeaders(), cache:'no-store' });
     if (!g.ok) return;
     const sha = (await g.json()).sha;
@@ -2420,14 +2443,57 @@ $('#impRun').onclick = async () => {
    ========================================================= */
 function openSettings(){
   closeSheets();
-  const c = repoCfg();
+  const c = dataCfg();
   $('#gOwner').value = c.owner || ''; $('#gRepo').value = c.repo || ''; $('#gBranch').value = c.branch; $('#gPath').value = c.path;
+  $('#gTarget').textContent = `${c.repo || 'データ用リポジトリ'}`;
+  renderLocBox();
   $('#gToken').value = '';
   $('#gStat').textContent = S.localTok ? '✅ この端末専用のトークンで同期中' + (S.sharedTok ? '（共有トークンもあり）' : '')
     : S.sharedTok ? '✅ 共有トークンで同期中（パスワードを知っているメンバー全員が編集できます）'
     : '⚠ トークン未登録（変更はこの端末内にのみ保存されます）';
   renderCityUrls();
   openSheet('#shSet');
+}
+function renderLocBox(){
+  const c = dataCfg(), lc = legacyCfg(), box = $('#locBox');
+  if (S.loc === 'site' && lc) {
+    box.style.background = '#fef7e0';
+    box.innerHTML = `⚠ <b>旧方式：データがサイトと同じリポジトリ（${esc(lc.repo)}）にあります。</b><br>
+      データ用リポジトリ <b>${esc(c.owner)}/${esc(c.repo)}</b> を空のまま作成し、そのリポジトリだけを対象にしたトークンを下に入れて「保存して接続テスト」を押すと、データと添付ファイルを自動で移します。`;
+  } else {
+    box.style.background = '#e6f4ea';
+    box.innerHTML = `✅ データの保存先：<b>${esc(c.owner || '')}/${esc(c.repo || '')}</b>（サイト本体とは別のリポジトリ）`;
+  }
+}
+/* ---- one-time move: site repo → <repo>-data ---- */
+async function migrateToDataRepo(progress){
+  const dc = dataCfg(), lc = legacyCfg();
+  const g = await ghGet(dc).catch(e => { if (e.status === 404) return null; throw e; });
+  if (g) throw new Error(`${dc.repo} には既にデータがあります。空のリポジトリを指定してください`);
+  const files = [];
+  S.data.items.forEach(i => (i.files || []).forEach(f => { files.push([f.p, f.k]); if (f.tp) files.push([f.tp, f.tk]); }));
+  let n = 0, copied = 0, skipped = 0;
+  for (const [path] of files) {
+    progress(`添付ファイルを移動中… ${++n}/${files.length}`);
+    let buf;
+    try { buf = await ghGetFile(path, lc); } catch(e) { skipped++; continue; }
+    try { await ghPutFile(path, new Uint8Array(buf), dc); copied++; }
+    catch(e) { if (e.status === 422) copied++; else throw e; }      // 422 = already copied in an earlier attempt
+  }
+  progress('データを移動中…');
+  S.loc = 'data';
+  S.data.updatedAt = new Date().toISOString();
+  const blob = await makeBlob();
+  S.sha = await ghPut(blob, null, dc);
+  S.remoteTs = blob.ts; S.dirty = false;
+  LS.set('tm_blob', JSON.stringify(blob));
+  return { copied, skipped };
+}
+/* a device still on the old layout notices the move by itself */
+async function checkMoved(){
+  if (S.loc !== 'site') return false;
+  try { const d = await ghGet(dataCfg()); if (d) { S.loc = 'data'; S.sha = d.sha; return true; } } catch(e){}
+  return false;
 }
 function renderCityUrls(){
   const ul = $('#cityUrls'); ul.innerHTML = '';
@@ -2454,9 +2520,10 @@ $('#gSave').onclick = async () => {
   const st = $('#gStat'); st.textContent = '接続テスト中…';
   const prev = S.token;
   if (tok) S.token = tok;
+  const lc = legacyCfg(), toSite = lc && cfg.owner === lc.owner && cfg.repo === lc.repo;   // explicitly keeping the old layout
   try {
-    const c = repoCfg();
-    const r = await fetch(`https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}`, { headers:ghHeaders() });
+    const c = toSite ? lc : dataCfg();
+    const r = await fetch(repoApi(c), { headers:ghHeaders() });
     if (!r.ok) throw new Error(r.status === 404 ? 'リポジトリが見つからないか、トークンに権限がありません' : r.status === 401 ? 'トークンが無効か期限切れです' : 'HTTP ' + r.status);
     const j = await r.json();
     if (S.token && !(j.permissions && j.permissions.push)) throw new Error('トークンに書き込み権限（Contents: Read and write）がありません');
@@ -2466,6 +2533,12 @@ $('#gSave').onclick = async () => {
     }
     refreshToken();
     $('#gToken').value = '';
+    if (S.loc === 'site' && S.token && !toSite) {
+      const nf = await migrateToDataRepo(msg => { st.textContent = msg; });
+      renderLocBox(); startPolling(); setSync('ok');
+      st.textContent = `✅ データ用リポジトリへ移しました（添付ファイル ${nf.copied} 個${nf.skipped ? `、見つからず ${nf.skipped} 個` : ''}）。サイト側リポジトリの data.enc.json と files フォルダを削除し、古いトークンも GitHub で Delete してください`;
+      return;
+    }
     st.textContent = !S.token ? '✅ 接続OK（トークン未登録のため閲覧のみ）'
       : S.sharedTok && !S.localTok ? '✅ 接続OK。共有トークンを保存しました（メンバーは入力不要で編集できます）'
       : '✅ 接続OK。この端末の変更は自動で同期されます';
