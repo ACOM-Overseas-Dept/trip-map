@@ -253,6 +253,48 @@ table.pt .badge{min-width:24px;height:24px;font-size:11px}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   table.pt tr{page-break-inside:avoid}
 }
+/* ---------- trips ---------- */
+.tbtn{border:0;background:transparent;padding:4px 6px;margin:-4px -6px;border-radius:8px;cursor:pointer;text-align:left;font:inherit;font-weight:700;font-size:15px}
+.tbtn:hover{background:#f0f2f5}
+.tdd{color:var(--mute);font-size:11px}
+.mtrip{font-size:12px;color:var(--sub);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;margin-bottom:1px}
+.trips{list-style:none;margin:0;padding:0}
+.trips li{border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:8px;background:#fff;display:flex;gap:10px;align-items:center;cursor:pointer}
+.trips li.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-weak)}
+.trips li .tb{flex:1;min-width:0}
+.trips li .tt{font-weight:700;font-size:14.5px;word-break:break-word}
+.trips li .ts{font-size:12px;color:var(--sub);margin-top:2px}
+.cityEd{list-style:none;margin:6px 0 0;padding:0}
+.cityEd li{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.cityEd li input{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+.cityEd .cs{font-size:11.5px;color:var(--sub);white-space:nowrap}
+.imp table{width:100%;border-collapse:collapse;font-size:12px}
+.imp th,.imp td{border-bottom:1px solid var(--line);padding:5px 4px;text-align:left;vertical-align:top}
+.imp th{color:var(--sub);font-weight:700;position:sticky;top:0;background:#fff}
+.imp .tw{max-height:38vh;overflow:auto;border:1px solid var(--line);border-radius:8px;margin:8px 0}
+.st-ok{color:var(--ok)} .st-q{color:var(--warn)} .st-ng{color:var(--danger)} .st-dup{color:var(--mute)}
+.dropz{border:2px dashed #b9c0ca;border-radius:12px;padding:18px;text-align:center;color:var(--sub);background:#fafbfc;cursor:pointer}
+.dropz.over{border-color:var(--accent);background:var(--accent-weak)}
+/* ---------- attachments ---------- */
+.atts{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
+.att{position:relative;width:64px;height:64px;border-radius:9px;border:1px solid var(--line);background:#f1f3f5 center/cover no-repeat;cursor:pointer;overflow:hidden;display:flex;align-items:center;justify-content:center;flex:none}
+.att.file{width:auto;min-width:64px;max-width:170px;padding:0 9px;background:#fff;gap:6px;font-size:12px;color:var(--text);justify-content:flex-start}
+.att.file .fn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.att .ld{font-size:11px;color:var(--mute)}
+.att .rm{position:absolute;top:2px;right:2px;width:22px;height:22px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:13px;line-height:22px;padding:0;display:flex;align-items:center;justify-content:center}
+.att.up{opacity:.6}
+.att.up::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),transparent);animation:sh 1.1s infinite}
+@keyframes sh{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+.attAdd{display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border:1.5px dashed #b9c0ca;border-radius:9px;color:var(--sub);font-size:22px;cursor:pointer;background:#fff;flex:none}
+#lb{position:fixed;inset:0;z-index:3500;background:rgba(10,12,16,.97);display:flex;flex-direction:column;color:#fff}
+#lb .lbh{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 10px) 12px 10px}
+#lb .lbh .nm{flex:1;min-width:0;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#lb .lbh a,#lb .lbh button{color:#fff;border:1px solid rgba(255,255,255,.35);background:transparent;border-radius:9px;padding:7px 11px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap}
+#lb .lbb{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:8px 8px calc(env(safe-area-inset-bottom) + 14px)}
+#lb img{max-width:100%;max-height:100%;object-fit:contain;border-radius:4px}
+#lb .fbox{text-align:center;font-size:14px;line-height:1.8}
+#lb .fbox .big{font-size:54px}
+#lb .fbox a{display:inline-block;margin-top:12px;background:#fff;color:#111;border-radius:10px;padding:10px 18px;font-weight:700;text-decoration:none}
 </style>
 </head>
 <body>
@@ -271,7 +313,7 @@ table.pt .badge{min-width:24px;height:24px;font-size:11px}
 
 <div id="app" class="hidden">
   <header id="hdr">
-    <div class="title" id="tripTitle"></div>
+    <button class="title tbtn" id="tripTitle" data-act="trips" title="出張を切り替え・作成"></button>
     <span class="sync" id="sync"><i></i><span>—</span></span>
     <div class="hgap"></div>
     <div class="seg" id="cityTabs"></div>
@@ -284,7 +326,7 @@ table.pt .badge{min-width:24px;height:24px;font-size:11px}
   <section id="listPane">
     <div class="grab mOnly" id="sheetGrab"><span></span></div>
     <div class="mHead mOnly" id="sheetHead">
-      <div class="mt"><b id="mCity">—</b><span class="cnt" id="mCount"></span><span class="sync" id="sync2"><i></i><span>—</span></span></div>
+      <div class="mt"><div class="mtrip" id="mTrip" data-act="trips"></div><b id="mCity">—</b><span class="cnt" id="mCount"></span><span class="sync" id="sync2"><i></i><span>—</span></span></div>
       <button class="btn" data-act="route">🧭 経路</button>
       <button class="btn pri" data-act="add">＋ 追加</button>
       <button class="btn icon" data-act="menu" aria-label="メニュー">⋯</button>
@@ -304,6 +346,8 @@ table.pt .badge{min-width:24px;height:24px;font-size:11px}
         <option value="name">名前順に整列</option>
         <option value="reverse">逆順にする</option>
       </select>
+      <span class="grow" style="flex:1"></span>
+      <button class="btn sm" data-act="import">📥 一括取り込み</button>
     </div>
     <details class="cityMemo" id="cityMemoBox">
       <summary>📝 <b id="cityMemoTitle">都市メモ</b> <span id="cityMemoPrev"></span></summary>
@@ -355,11 +399,76 @@ table.pt .badge{min-width:24px;height:24px;font-size:11px}
     </div>
     <div class="fld"><label>その他</label>
       <div class="menuGrid">
+        <button class="btn" data-act="trips">🧳 出張の切替・作成</button>
+        <button class="btn" data-act="import">📥 一括取り込み</button>
         <button class="btn" data-act="print">🖨 印刷・PDF</button>
         <button class="btn" data-act="settings">⚙ 設定</button>
       </div>
     </div>
   </div>
+</div>
+
+<div class="sheet hidden tall" id="shTrip">
+  <div class="sh-h"><h2 id="trH">🧳 出張</h2><button class="x" data-close>×</button></div>
+  <div class="sh-b">
+    <div id="trListView">
+      <button class="btn pri" id="trNew" style="width:100%;justify-content:center;margin-bottom:12px">＋ 新しい出張を作成</button>
+      <ul class="trips" id="trList"></ul>
+      <details id="trArchBox" style="margin-top:6px"><summary style="cursor:pointer;color:var(--sub);font-size:13px">アーカイブ済みの出張 <span id="trArchN"></span></summary><ul class="trips" id="trArch" style="margin-top:8px"></ul></details>
+    </div>
+    <div id="trFormView" class="hidden">
+      <div class="fld"><label>出張名</label><input type="text" id="tfTitle" placeholder="例: 2027年2月 カンボジア・タイ出張"></div>
+      <div class="row">
+        <div class="fld grow"><label>開始日</label><input type="date" id="tfStart" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px"></div>
+        <div class="fld grow"><label>終了日</label><input type="date" id="tfEnd" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px"></div>
+      </div>
+      <div class="fld"><label>都市</label>
+        <ul class="cityEd" id="tfCities"></ul>
+        <div class="row">
+          <input type="text" class="grow" id="tfCityIn" placeholder="都市名を入力（例: プノンペン）" style="border:1px solid var(--line);border-radius:8px;padding:8px 10px">
+          <button class="btn sm" id="tfCityAdd">＋ 追加</button>
+        </div>
+        <div class="hint">都市名だけで地図の中心を自動で探します。見つからない場合は「都市名 緯度,経度」の形で入力してください。</div>
+      </div>
+      <div class="row" id="tfEditOnly">
+        <button class="btn sm" id="tfArch">アーカイブ</button>
+        <button class="btn sm" id="tfImport">📥 この出張に一括取り込み</button>
+        <span class="grow"></span>
+        <button class="btn sm dng" id="tfDel">出張を削除</button>
+      </div>
+    </div>
+  </div>
+  <div class="sh-f hidden" id="trFoot"><button class="btn" id="tfBack">← 一覧</button><span class="grow"></span><button class="btn pri" id="tfSave">保存</button></div>
+</div>
+
+<div class="sheet hidden tall imp" id="shImp">
+  <div class="sh-h"><h2>📥 一括取り込み</h2><button class="x" data-close>×</button></div>
+  <div class="sh-b">
+    <div id="impStart">
+      <div class="dropz" id="impDrop"><div style="font-size:26px">📄</div><b>Excel・CSV・KMLファイルを選択</b><div class="hint">.xlsx / .csv / .kml / .kmz（Googleマイマップの書き出し）</div></div>
+      <input type="file" id="impFile" accept=".xlsx,.csv,.tsv,.txt,.kml,.kmz" class="hidden">
+      <div class="fld" style="margin-top:12px"><label>またはExcelの表をコピーして貼り付け（1行目は見出し）</label>
+        <textarea id="impPaste" placeholder="都市	区分	訪問先名	施設名	住所	緯度	経度	GoogleマップURL	メモ" style="min-height:90px;font-family:ui-monospace,monospace;font-size:12px"></textarea>
+        <button class="btn sm" id="impPasteBtn" style="margin-top:6px">貼り付けた内容を読み込む</button>
+      </div>
+      <div class="box" style="margin-top:4px">
+        <h3>テンプレート</h3>
+        <div class="row"><button class="btn sm" id="impTpl">⬇ テンプレート（Excelで開けるCSV）</button></div>
+        <div class="hint">列：都市／区分（訪問先・ホテル・視察・空港・その他）／訪問先名／施設名／住所／緯度／経度／GoogleマップURL／メモ。<br>緯度・経度かURLがあればその位置に、無ければ施設名と住所から自動で探します。列の順番や見出しの表記は多少違っても読み取ります。</div>
+      </div>
+    </div>
+    <div id="impPrev" class="hidden">
+      <div class="row">
+        <div class="fld grow"><label>取り込み先の出張</label><select id="impTrip"></select></div>
+        <div class="fld grow"><label>都市が空欄の行</label><select id="impCityDef"></select></div>
+      </div>
+      <label class="row" style="gap:8px;font-size:13px;font-weight:600"><input type="checkbox" id="impGeo" checked> 位置が無い行は施設名・住所から自動で探す</label>
+      <label class="row" style="gap:8px;font-size:13px;font-weight:600;margin-top:4px"><input type="checkbox" id="impSkipDup" checked> 同じ都市に同じ名前があればスキップ</label>
+      <div class="tw"><table id="impTable"></table></div>
+      <div class="hint" id="impSum"></div>
+    </div>
+  </div>
+  <div class="sh-f hidden" id="impFoot"><button class="btn" id="impBack">← やり直す</button><span class="grow"></span><button class="btn pri" id="impRun">取り込む</button></div>
 </div>
 
 <div class="sheet hidden" id="shRoute">
@@ -432,6 +541,11 @@ table.pt .badge{min-width:24px;height:24px;font-size:11px}
     </div>
     <div class="fld"><label>住所</label><input type="text" id="itAddr"></div>
     <div class="fld"><label>メモ</label><textarea id="itMemo" placeholder="面談相手、時間、持ち物など"></textarea></div>
+    <div class="fld"><label>📎 写真・ファイル（暗号化して保存）</label>
+      <div class="atts" id="itFiles"></div>
+      <input type="file" id="itFileIn" multiple class="hidden">
+      <div class="hint">メンバー以外はファイル名も中身も見られません。1ファイル20MBまで（写真は自動で縮小）。</div>
+    </div>
     <div class="row" id="itEditTools">
       <button class="btn sm" id="itUp">▲ 前へ</button>
       <button class="btn sm" id="itDown">▼ 後へ</button>
@@ -446,11 +560,6 @@ table.pt .badge{min-width:24px;height:24px;font-size:11px}
 <div class="sheet hidden tall" id="shSet">
   <div class="sh-h"><h2>⚙ 設定</h2><button class="x" data-close>×</button></div>
   <div class="sh-b">
-    <div class="box">
-      <h3>出張名</h3>
-      <div class="row"><input type="text" class="grow" id="sTitle" style="border:1px solid var(--line);border-radius:8px;padding:8px 10px"><button class="btn sm" id="sTitleSave">変更</button></div>
-    </div>
-
     <div class="box">
       <h3>🔄 PC・スマホの同期（GitHub）</h3>
       <div class="hint" style="margin:0 0 8px">変更を保存・同期するには、GitHubのアクセストークンが必要です。「メンバーと共有」にすると、トークンはパスワードで暗号化してデータと一緒に保存され、パスワードを知っている人は入力なしで共同編集できます。</div>
@@ -481,19 +590,9 @@ table.pt .badge{min-width:24px;height:24px;font-size:11px}
     </div>
 
     <div class="box">
-      <h3>🔗 都市別のURL</h3>
+      <h3>🔗 都市別のURL（表示中の出張）</h3>
       <div class="hint" style="margin:0 0 6px">このURLで開くと、その都市の地図が最初から表示されます（ブックマーク・ホーム画面追加用）。</div>
       <ul class="wp" id="cityUrls"></ul>
-    </div>
-
-    <div class="box">
-      <h3>🏙 都市</h3>
-      <ul class="wp" id="cityList"></ul>
-      <div class="row" style="margin-top:8px">
-        <input type="text" class="grow" id="newCity" placeholder="都市名（例: プノンペン）" style="border:1px solid var(--line);border-radius:8px;padding:7px 9px">
-        <input type="text" class="grow" id="newCityPos" placeholder="中心座標（例: 11.556, 104.928）" style="border:1px solid var(--line);border-radius:8px;padding:7px 9px">
-        <button class="btn sm" id="newCityBtn">追加</button>
-      </div>
     </div>
 
     <div class="box">
@@ -516,6 +615,8 @@ table.pt .badge{min-width:24px;height:24px;font-size:11px}
 </div>
 
 <div id="peekBar" class="hidden"><span id="peekMsg">地図をタップして位置を指定</span><button class="btn pri" id="peekDone">完了</button></div>
+<div id="lb" class="hidden"><div class="lbh"><span class="nm" id="lbName"></span><a id="lbSave" href="#" target="_blank" rel="noopener">⬇ 保存</a><button id="lbDel">🗑 削除</button><button id="lbClose">✕</button></div><div class="lbb" id="lbBody"></div></div>
+<input type="file" id="quickFileIn" multiple class="hidden">
 <div id="toast"></div>
 
 <script>
@@ -580,9 +681,23 @@ function normalize(d){
   // data saved by the previous version has no per-item timestamps: treat everything as written at updatedAt
   const legacyTs = Date.parse(d.updatedAt || '') || 0;
   d.v = 1;
-  d.title = d.title || '出張マップ';
   d.cities = Array.isArray(d.cities) && d.cities.length ? d.cities : [{id:'c1', name:'都市', lat:21.0285, lng:105.854, zoom:13, memo:''}];
-  d.cities.forEach(c => { c.id = c.id || uid(); c.memo = c.memo || ''; c.zoom = c.zoom || 13; if (c.u == null) c.u = legacyTs; });
+  // ---- trips (v2). Data from the single-trip version becomes the first trip
+  if (!Array.isArray(d.trips) || !d.trips.length) {
+    const t = { id:'trip1', title:(d.title && d.title !== '出張マップ') ? d.title : '出張', start:'', end:'', u:legacyTs, arch:false };
+    const m = String(t.title).match(/^(\d{4})(\d{2})(\d{2})\s*[-–~〜]\s*(\d{2})(\d{2})/);
+    if (m) { t.start = `${m[1]}-${m[2]}-${m[3]}`; t.end = `${m[1]}-${m[4]}-${m[5]}`; }
+    d.trips = [t];
+    d.title = '出張マップ';
+  }
+  d.title = d.title || '出張マップ';
+  d.trips.forEach(t => { t.id = t.id || uid(); t.title = t.title || '出張'; t.start = t.start || ''; t.end = t.end || ''; t.arch = !!t.arch; if (t.u == null) t.u = legacyTs; });
+  d.tdel = d.tdel || {};
+  d.cities.forEach(c => {
+    c.id = c.id || uid(); c.memo = c.memo || ''; c.zoom = c.zoom || 13; if (c.u == null) c.u = legacyTs;
+    if (!d.trips.find(t => t.id === c.trip)) c.trip = d.trips[0].id;
+    if (!c.q) c.q = ({'ハノイ':'Hanoi','ホーチミン':'Ho Chi Minh City'})[c.name] || c.name;
+  });
   d.items = Array.isArray(d.items) ? d.items : [];
   d.items.forEach(i => {
     i.id = i.id || uid();
@@ -593,7 +708,9 @@ function normalize(d){
     i.lng = (typeof i.lng === 'number' && isFinite(i.lng)) ? i.lng : null;
     i.ok = !!i.ok;
     if (i.u == null) i.u = legacyTs;
+    i.files = Array.isArray(i.files) ? i.files.filter(f => f && f.id && f.p && f.k) : [];
   });
+  d.fdel = d.fdel || {};    // attachment tombstones
   d.del = d.del || {};      // item tombstones {id: ms}
   d.cdel = d.cdel || {};    // city tombstones
   if (d.orderTs == null) d.orderTs = legacyTs;
@@ -678,6 +795,13 @@ function mergeData(local, remote){
   const maxMap = (a, b) => { const o = Object.assign({}, a); Object.keys(b || {}).forEach(k => { o[k] = Math.max(o[k] || 0, b[k]); }); return o; };
   out.del = maxMap(remote.del, local.del);
   out.cdel = maxMap(remote.cdel, local.cdel);
+  // trips
+  out.tdel = maxMap(remote.tdel, local.tdel);
+  const tm = new Map(); (remote.trips || []).forEach(t => tm.set(t.id, t));
+  (local.trips || []).forEach(t => { const r = tm.get(t.id); if (!r || (t.u || 0) > (r.u || 0)) tm.set(t.id, t); });
+  const tOrder = (remote.trips || []).map(t => t.id); (local.trips || []).forEach(t => { if (!tOrder.includes(t.id)) tOrder.push(t.id); });
+  out.trips = tOrder.map(id => tm.get(id)).filter(t => t && !(out.tdel[t.id] && out.tdel[t.id] >= (t.u || 0)));
+  if (!out.trips.length) out.trips = (remote.trips && remote.trips.length) ? remote.trips : local.trips;
   // cities
   const cm = new Map(); remote.cities.forEach(c => cm.set(c.id, c));
   const lNew = String(local.updatedAt || '') > String(remote.updatedAt || '');
@@ -708,12 +832,20 @@ function mergeData(local, remote){
     if (at >= 0) ids.splice(at + 1, 0, i.id); else ids.push(i.id);
   });
   if (lNew && !(local.metaTs || 0) && !(remote.metaTs || 0)) { out.title = local.title; out.settings = local.settings; }
+  out.fdel = maxMap(remote.fdel, local.fdel);
   out.items = ids.map(id => im.get(id)).filter(i => i && !(out.del[i.id] && out.del[i.id] >= (i.u || 0)));
+  // attachments: union of both sides (so a concurrent edit never drops a file), minus deleted ones
+  const lf = new Map(local.items.map(i => [i.id, i.files || []])), rf = new Map(remote.items.map(i => [i.id, i.files || []]));
+  out.items.forEach(i => {
+    const all = new Map();
+    [...(rf.get(i.id) || []), ...(lf.get(i.id) || []), ...(i.files || [])].forEach(f => all.set(f.id, f));
+    i.files = [...all.values()].filter(f => !out.fdel[f.id]).sort((a, b) => (a.ts || 0) - (b.ts || 0));
+  });
   out.orderTs = Math.max(local.orderTs || 0, remote.orderTs || 0);
   if ((local.metaTs || 0) > (remote.metaTs || 0)) { out.title = local.title; out.settings = local.settings; }
   out.metaTs = Math.max(local.metaTs || 0, remote.metaTs || 0);
   // prune tombstones older than 60 days
-  [out.del, out.cdel].forEach(t => Object.keys(t).forEach(k => { if (now - t[k] > 60 * 864e5) delete t[k]; }));
+  [out.del, out.cdel, out.fdel, out.tdel].forEach(t => Object.keys(t).forEach(k => { if (now - t[k] > 60 * 864e5) delete t[k]; }));
   out.updatedAt = new Date().toISOString();
   return normalize(out);
 }
@@ -1005,6 +1137,16 @@ function fitCity(animate){
    Data helpers
    ========================================================= */
 const curCity = () => S.data.cities.find(c => c.id === U.city) || S.data.cities[0];
+const tripOf = c => S.data.trips.find(t => t.id === (c && c.trip)) || S.data.trips[0];
+const curTrip = () => tripOf(curCity());
+const tripCities = tid => S.data.cities.filter(c => c.trip === (tid || curTrip().id));
+const tripItems = tid => { const ids = new Set(tripCities(tid).map(c => c.id)); return S.data.items.filter(i => ids.has(i.city)); };
+function fmtPeriod(t){
+  const f = s => s ? s.replace(/^(\d{4})-(\d{2})-(\d{2})$/, (_, y, m, d) => `${y}/${+m}/${+d}`) : '';
+  if (!t.start && !t.end) return '';
+  const a = f(t.start), b = f(t.end);
+  return b && a && b.slice(0, 4) === a.slice(0, 4) ? `${a}〜${b.slice(5)}` : `${a}〜${b}`;
+}
 const cityItems = (cid) => S.data.items.filter(i => i.city === (cid || U.city));
 const byId = id => S.data.items.find(i => i.id === id);
 function badgeMap(items){
@@ -1028,10 +1170,12 @@ function names(it){
    Render
    ========================================================= */
 function renderHeader(){
-  $('#tripTitle').textContent = S.data.title;
-  document.title = S.data.title + ' | 出張マップ';
+  const tr = curTrip();
+  $('#tripTitle').innerHTML = `${esc(tr.title)} <span class="tdd">▾</span>`;
+  $('#mTrip').innerHTML = `🧳 ${esc(tr.title)} <span class="tdd">▾</span>`;
+  document.title = tr.title + ' | 出張マップ';
   const tabs = $('#cityTabs'); tabs.innerHTML = '';
-  S.data.cities.forEach(c => {
+  tripCities(tr.id).forEach(c => {
     const b = document.createElement('button');
     b.textContent = c.name + ` ${cityItems(c.id).length}`;
     if (c.id === U.city) b.classList.add('on');
@@ -1056,7 +1200,8 @@ function renderList(){
     const li = document.createElement('li');
     li.dataset.id = it.id;
     if (it.id === U.sel) li.classList.add('sel');
-    const chip = it.lat == null ? '<span class="chip na">位置未設定</span>' : (!it.ok ? '<span class="chip warn">位置要確認</span>' : '');
+    const chip = (it.lat == null ? '<span class="chip na">位置未設定</span>' : (!it.ok ? '<span class="chip warn">位置要確認</span>' : ''))
+      + ((it.files || []).length ? `<span class="chip" style="background:#eef2f7;color:#3c4652">📎${it.files.length}</span>` : '');
     const sel = it.id === U.sel;
     let detail = '';
     if (sel) {
@@ -1068,7 +1213,8 @@ function renderList(){
            <button data-iact="route">🧭 ここから…</button>
            <button data-iact="edit">✎ 編集</button>`
         : `<button class="main" data-iact="edit">📍 位置を設定</button>${it.addr || it.name ? '<button data-iact="copy">📋 住所コピー</button>' : ''}`;
-      detail = `<div class="idetail">${it.addr ? `<div class="addr">${esc(it.addr)}</div>` : ''}<div class="iacts">${acts}</div></div>`;
+      const atts = (it.files || []).length ? `<div class="atts">${attTiles(it.files, false)}</div>` : '';
+      detail = `<div class="idetail">${it.addr ? `<div class="addr">${esc(it.addr)}</div>` : ''}${atts}<div class="iacts">${acts}<button data-iact="attach">📎 添付</button></div></div>`;
     }
     li.innerHTML = `<span class="handle" title="ドラッグで並べ替え">⠿</span>
       <span class="badge ${it.cat}" style="--c:${CATS[it.cat].color}">${esc(badges[it.id])}</span>
@@ -1082,9 +1228,14 @@ function renderList(){
       if (act) {
         e.stopPropagation();
         const a = act.dataset.iact;
-        if (a === 'edit') openItem(it.id); else if (a === 'copy') copyAddr(it); else openRoute(it.id);
+        if (a === 'edit') openItem(it.id);
+        else if (a === 'copy') copyAddr(it);
+        else if (a === 'attach') { if (!S.token) { toast('トークン未登録のため添付できません（⚙ 設定 → 同期）', 4000); return; } quickTarget = it.id; $('#quickFileIn').click(); }
+        else openRoute(it.id);
         return;
       }
+      const at = e.target.closest('[data-att]');
+      if (at) { const f = (it.files || []).find(x => x.id === at.dataset.att); if (f) openAtt(f, { onDelete: ff => removeAttachment(it, ff) }); return; }
       if (e.target.closest('.idetail')) return;
       if (it.lat == null) { openItem(it.id); return; }
       if (U.sel === it.id && isMobile()) { U.sel = null; renderList(); renderMarkers(); return; }
@@ -1092,6 +1243,7 @@ function renderList(){
     };
     li.querySelector('.edit').onclick = () => openItem(it.id);
     ul.appendChild(li);
+    if (sel && (it.files || []).length) hydrateThumbs(li, it.files);
   });
 }
 function renderAll(){
@@ -1144,7 +1296,7 @@ function insets(){
   const tabs = $('#cityTabs').getBoundingClientRect();
   const top = (tabs.bottom || 60) + 8;
   let bottom = document.body.classList.contains('picking') ? 90 : (SH.visible || 0);
-  ['#shRoute','#shItem','#shSet','#shMenu'].forEach(s => { const el = $(s); if (!el.classList.contains('hidden') && !document.body.classList.contains('picking')) bottom = Math.max(bottom, el.getBoundingClientRect().height); });
+  ['#shRoute','#shItem','#shSet','#shMenu','#shTrip','#shImp'].forEach(s => { const el = $(s); if (!el.classList.contains('hidden') && !document.body.classList.contains('picking')) bottom = Math.max(bottom, el.getBoundingClientRect().height); });
   return { top, bottom };
 }
 function centerOn(lat, lng, zoom, animate){
@@ -1316,17 +1468,18 @@ function reorderCity(ids){
    Sheets
    ========================================================= */
 function openSheet(id){
-  ['#shRoute','#shItem','#shSet','#shMenu'].forEach(s => { if (s !== id) $(s).classList.add('hidden'); });
+  ['#shRoute','#shItem','#shSet','#shMenu','#shTrip','#shImp'].forEach(s => { if (s !== id) $(s).classList.add('hidden'); });
   if (map) map.closePopup();
   $(id).classList.remove('hidden');
 }
 function closeSheets(){
   const wasItem = !$('#shItem').classList.contains('hidden');
-  ['#shRoute','#shItem','#shSet','#shMenu'].forEach(s => $(s).classList.add('hidden'));
+  ['#shRoute','#shItem','#shSet','#shMenu','#shTrip','#shImp'].forEach(s => $(s).classList.add('hidden'));
   endPick();
   if (routeLine && map) { map.removeLayer(routeLine); routeLine = null; }
   if (tmpMarker && map) { map.removeLayer(tmpMarker); tmpMarker = null; }
   if (wasItem && U.editId) { U.editId = null; renderMarkers(); }
+  if (U.form && !U.form.saved && U.form.added && U.form.added.length) U.form.added.forEach(f => { ghDeleteFile(f.p); if (f.tp) ghDeleteFile(f.tp); });
   U.editId = null; U.form = null;
 }
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeSheets));
@@ -1350,7 +1503,7 @@ function openItem(id){
   $('#itMemo').value = it ? it.memo : '';
   $('#itCat').value = it ? it.cat : 'visit';
   $('#itOk').checked = it ? it.ok : true;
-  $('#itCity').innerHTML = S.data.cities.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  $('#itCity').innerHTML = tripCities().map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
   $('#itCity').value = it ? it.city : U.city;
   $('#itCityWrap').classList.toggle('hidden', !it);
   $('#itEditTools').classList.toggle('hidden', !it);
@@ -1358,6 +1511,8 @@ function openItem(id){
   $('#qIn').value = ''; $('#qRes').innerHTML = ''; $('#pasteIn').value = '';
   $('#itSearchBox').open = true;
   U.form.gurl = it ? it.gurl : '';
+  U.form.files = it ? (it.files || []).slice() : []; U.form.added = []; U.form.removed = []; U.form.uploading = [];
+  renderFormFiles();
   updateGoogleSearchLink();
   if (it) { $('#itGmap').href = gmapUrl(it); renderMarkers(); }
   showFormPos();
@@ -1385,7 +1540,7 @@ function setFormPos(lat, lng, pan){
 }
 function updateGoogleSearchLink(){
   const q = ($('#qIn').value || $('#itName').value || $('#itLabel').value || '').trim();
-  $('#qGoogle').href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent((q ? q + ' ' : '') + curCity().name.replace('ホーチミン','Ho Chi Minh City').replace('ハノイ','Hanoi'));
+  $('#qGoogle').href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent((q ? q + ' ' : '') + (curCity().q || curCity().name));
 }
 $('#qIn').addEventListener('input', updateGoogleSearchLink);
 $('#itName').addEventListener('input', updateGoogleSearchLink);
@@ -1466,7 +1621,10 @@ $('#peekDone').onclick = () => { endPick(); if (U.form) { $('#shItem').classList
 $('#itSave').onclick = () => {
   const name = $('#itName').value.trim(), label = $('#itLabel').value.trim();
   if (!name && !label) { toast('訪問先名か施設名を入力してください'); return; }
-  const vals = { name, label, addr:$('#itAddr').value.trim(), memo:$('#itMemo').value.trim(), cat:$('#itCat').value, lat:U.form.lat, lng:U.form.lng, ok:$('#itOk').checked && U.form.lat != null, gurl:U.form.gurl || '' };
+  if (U.form.uploading.length) { toast('アップロードが終わるまでお待ちください'); return; }
+  const vals = { name, label, addr:$('#itAddr').value.trim(), memo:$('#itMemo').value.trim(), cat:$('#itCat').value, lat:U.form.lat, lng:U.form.lng, ok:$('#itOk').checked && U.form.lat != null, gurl:U.form.gurl || '', files:U.form.files.slice() };
+  U.form.saved = true;
+  U.form.removed.forEach(f => { S.data.fdel[f.id] = Date.now(); ghDeleteFile(f.p); if (f.tp) ghDeleteFile(f.tp); });
   let it;
   vals.u = Date.now();
   if (U.editId) {
@@ -1486,6 +1644,9 @@ $('#itDel').onclick = () => {
   const b = $('#itDel');
   if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'もう一度押すと削除'; setTimeout(() => { b.dataset.armed = ''; b.textContent = '削除'; }, 3000); return; }
   S.data.del[U.editId] = Date.now();
+  const gone = byId(U.editId);
+  ((gone && gone.files) || []).concat(U.form.added || []).forEach(f => { S.data.fdel[f.id] = Date.now(); ghDeleteFile(f.p); if (f.tp) ghDeleteFile(f.tp); });
+  U.form.saved = true;
   S.data.items = S.data.items.filter(x => x.id !== U.editId);
   closeSheets(); changed(); toast('削除しました');
 };
@@ -1498,6 +1659,191 @@ function moveItem(delta){
 }
 $('#itUp').onclick = () => moveItem(-1);
 $('#itDown').onclick = () => moveItem(1);
+
+/* =========================================================
+   Attachments (each file encrypted with its own random key;
+   the key + file name live only inside the encrypted data)
+   ========================================================= */
+const FILE_MAX = 20 * 1024 * 1024;
+const attCache = new Map();          // path -> objectURL
+const attBlobs = new Map();          // path -> Blob (decrypted)
+function fmtSize(n){ return n > 1048576 ? (n / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB'; }
+function fileIcon(t, n){ t = t || ''; n = (n || '').toLowerCase();
+  if (t.includes('pdf') || n.endsWith('.pdf')) return '📕';
+  if (/sheet|excel|csv/.test(t) || /\.(xlsx?|csv)$/.test(n)) return '📊';
+  if (/word|document/.test(t) || /\.docx?$/.test(n)) return '📄';
+  if (/presentation|powerpoint/.test(t) || /\.pptx?$/.test(n)) return '📽';
+  if (t.startsWith('image/')) return '🖼';
+  return '📎'; }
+function rid(){ return [...crypto.getRandomValues(new Uint8Array(12))].map(b => b.toString(16).padStart(2, '0')).join(''); }
+async function encBytes(buf){
+  const raw = crypto.getRandomValues(new Uint8Array(32));
+  const key = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt']);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, buf));
+  const out = new Uint8Array(12 + ct.length); out.set(iv, 0); out.set(ct, 12);
+  return { k:b64(raw), bytes:out };
+}
+async function decBytes(kB64, buf){
+  const u = new Uint8Array(buf);
+  const key = await crypto.subtle.importKey('raw', unb64(kB64), 'AES-GCM', false, ['decrypt']);
+  return crypto.subtle.decrypt({name:'AES-GCM', iv:u.slice(0, 12)}, key, u.slice(12));
+}
+async function ghPutFile(path, bytes){
+  const c = repoCfg();
+  const url = `https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/contents/${path}`;
+  const r = await fetch(url, { method:'PUT', headers:Object.assign({'Content-Type':'application/json'}, ghHeaders()), body:JSON.stringify({ message:'add file', content:b64(bytes), branch:c.branch }) });
+  if (!r.ok) { let m = ''; try { m = (await r.json()).message || ''; } catch(e){} throw Object.assign(new Error('GitHub ' + r.status + ' ' + m), {status:r.status}); }
+}
+async function ghGetFile(path){
+  // GitHub Pages copy first (no API limits); falls back to the API right after upload
+  try { const r = await fetch(path, {cache:'force-cache'}); if (r.ok) { const b = await r.arrayBuffer(); if (b.byteLength > 12) return b; } } catch(e){}
+  const c = repoCfg();
+  const h = ghHeaders(); h.Accept = 'application/vnd.github.raw';
+  const r = await fetch(`https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/contents/${path}?ref=${encodeURIComponent(c.branch)}`, { headers:h });
+  if (!r.ok) throw new Error('ファイルを取得できません（' + r.status + '）');
+  return r.arrayBuffer();
+}
+async function ghDeleteFile(path){
+  try {
+    const c = repoCfg(), base = `https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/contents/${path}`;
+    const g = await fetch(base + '?ref=' + encodeURIComponent(c.branch), { headers:ghHeaders(), cache:'no-store' });
+    if (!g.ok) return;
+    const sha = (await g.json()).sha;
+    await fetch(base, { method:'DELETE', headers:Object.assign({'Content-Type':'application/json'}, ghHeaders()), body:JSON.stringify({ message:'remove file', sha, branch:c.branch }) });
+  } catch(e){}
+}
+async function loadImage(file){
+  const url = URL.createObjectURL(file);
+  try { const img = new Image(); img.src = url; await img.decode(); return img; }
+  finally { setTimeout(() => URL.revokeObjectURL(url), 1000); }
+}
+function canvasBlob(img, max, q){
+  const sc = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.round(img.naturalWidth * sc), h = Math.round(img.naturalHeight * sc);
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); ctx.drawImage(img, 0, 0, w, h);
+  return new Promise(r => cv.toBlob(r, 'image/jpeg', q));
+}
+async function uploadAttachment(file){
+  if (!S.token) throw new Error('トークン未登録のため添付できません（⚙ 設定 → 同期）');
+  let main = file, thumb = null, type = file.type || 'application/octet-stream', name = file.name || 'file';
+  if (/^image\/(jpeg|png|webp|heic|heif|gif)$/i.test(type) || /\.(jpe?g|png|webp|heic|heif)$/i.test(name)) {
+    try {
+      const img = await loadImage(file);
+      if (file.size > 1.5 * 1048576 || /heic|heif/i.test(type + name)) { main = await canvasBlob(img, 2400, 0.85); type = 'image/jpeg'; name = name.replace(/\.(heic|heif|png|webp)$/i, '.jpg'); }
+      thumb = await canvasBlob(img, 320, 0.72);
+      if (!type.startsWith('image/')) type = 'image/jpeg';
+    } catch(e) { /* not decodable here: keep original, no thumbnail */ }
+  }
+  if (main.size > FILE_MAX) throw new Error(`${name} は大きすぎます（${fmtSize(main.size)}、上限20MB）`);
+  const id = rid(), meta = { id, name, type, size:main.size, ts:Date.now(), p:`files/${id}.bin` };
+  const e1 = await encBytes(await main.arrayBuffer());
+  meta.k = e1.k;
+  await ghPutFile(meta.p, e1.bytes);
+  if (thumb) {
+    const e2 = await encBytes(await thumb.arrayBuffer());
+    meta.tp = `files/${id}.t.bin`; meta.tk = e2.k;
+    await ghPutFile(meta.tp, e2.bytes);
+    const tb = new Blob([await thumb.arrayBuffer()], {type:'image/jpeg'});
+    attCache.set(meta.tp, URL.createObjectURL(tb));
+  }
+  attBlobs.set(meta.p, new Blob([await main.arrayBuffer()], {type}));
+  return meta;
+}
+async function attUrl(meta, thumb){
+  const path = thumb && meta.tp ? meta.tp : meta.p, k = thumb && meta.tp ? meta.tk : meta.k;
+  if (attCache.has(path)) return attCache.get(path);
+  let blob = attBlobs.get(path);
+  if (!blob) { blob = new Blob([await decBytes(k, await ghGetFile(path))], { type: thumb && meta.tp ? 'image/jpeg' : meta.type }); attBlobs.set(path, blob); }
+  const url = URL.createObjectURL(blob);
+  attCache.set(path, url);
+  return url;
+}
+function attTiles(files, removable){
+  return files.map(f => {
+    const img = (f.type || '').startsWith('image/') && f.tp;
+    const rm = removable ? `<button class="rm" data-rm="${esc(f.id)}" title="削除">✕</button>` : '';
+    return img ? `<div class="att" data-att="${esc(f.id)}" data-thumb="1" title="${esc(f.name)}"><span class="ld">…</span>${rm}</div>`
+               : `<div class="att file" data-att="${esc(f.id)}" title="${esc(f.name)}"><span>${fileIcon(f.type, f.name)}</span><span class="fn">${esc(f.name)}</span>${rm}</div>`;
+  }).join('');
+}
+function hydrateThumbs(root, files){
+  root.querySelectorAll('.att[data-thumb]').forEach(el => {
+    const f = files.find(x => x.id === el.dataset.att); if (!f) return;
+    attUrl(f, true).then(u => { el.style.backgroundImage = `url("${u}")`; const l = el.querySelector('.ld'); if (l) l.remove(); })
+      .catch(() => { const l = el.querySelector('.ld'); if (l) l.textContent = '⚠'; });
+  });
+}
+/* ---- lightbox ---- */
+let LB = null;
+async function openAtt(f, ctx){
+  LB = { f, ctx };
+  $('#lbName').textContent = `${f.name}（${fmtSize(f.size || 0)}）`;
+  $('#lbBody').innerHTML = '<div class="fbox">読み込み中…</div>';
+  $('#lbSave').removeAttribute('href'); $('#lbDel').textContent = '🗑 削除'; $('#lbDel').dataset.armed = '';
+  $('#lbDel').classList.toggle('hidden', !ctx || !ctx.onDelete);
+  $('#lb').classList.remove('hidden');
+  try {
+    const u = await attUrl(f, false);
+    if (LB.f !== f) return;
+    $('#lbSave').href = u; $('#lbSave').setAttribute('download', f.name);
+    if ((f.type || '').startsWith('image/')) $('#lbBody').innerHTML = `<img src="${u}" alt="${esc(f.name)}">`;
+    else $('#lbBody').innerHTML = `<div class="fbox"><div class="big">${fileIcon(f.type, f.name)}</div>${esc(f.name)}<br><span style="opacity:.7">${fmtSize(f.size || 0)}</span><br><a href="${u}" target="_blank" rel="noopener" download="${esc(f.name)}">開く・保存</a></div>`;
+  } catch(e) { $('#lbBody').innerHTML = `<div class="fbox">⚠ ${esc(e.message)}</div>`; }
+}
+function closeLb(){ $('#lb').classList.add('hidden'); $('#lbBody').innerHTML = ''; LB = null; }
+$('#lbClose').onclick = closeLb;
+$('#lb').addEventListener('click', e => { if (e.target.id === 'lbBody') closeLb(); });
+$('#lbDel').onclick = () => {
+  const b = $('#lbDel');
+  if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'もう一度押すと削除'; return; }
+  const { f, ctx } = LB; closeLb(); ctx.onDelete(f);
+};
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && LB) closeLb(); });
+/* ---- remove an attachment from a saved item ---- */
+function removeAttachment(it, f){
+  it.files = (it.files || []).filter(x => x.id !== f.id);
+  S.data.fdel[f.id] = Date.now(); it.u = Date.now();
+  changed();
+  ghDeleteFile(f.p); if (f.tp) ghDeleteFile(f.tp);
+  toast('削除しました');
+}
+/* ---- quick attach from the list (📎) ---- */
+let quickTarget = null;
+$('#quickFileIn').addEventListener('change', async e => {
+  const files = [...e.target.files]; e.target.value = '';
+  const it = quickTarget && byId(quickTarget); quickTarget = null;
+  if (!it || !files.length) return;
+  for (const file of files) {
+    toast(`アップロード中… ${file.name}`, 20000);
+    try { const m = await uploadAttachment(file); it.files = (it.files || []).concat(m); it.u = Date.now(); changed(); toast('添付しました：' + m.name); }
+    catch(err) { toast('⚠ ' + err.message, 5000); }
+  }
+});
+/* ---- attachments inside the add/edit form ---- */
+function renderFormFiles(){
+  const box = $('#itFiles'), f = U.form;
+  box.innerHTML = attTiles(f.files, true) + f.uploading.map(n => `<div class="att file up"><span>⏳</span><span class="fn">${esc(n)}</span></div>`).join('') + '<label class="attAdd" for="itFileIn" title="追加">＋</label>';
+  hydrateThumbs(box, f.files);
+}
+$('#itFiles').addEventListener('click', e => {
+  const rm = e.target.closest('[data-rm]');
+  if (rm) { e.preventDefault(); e.stopPropagation(); const id = rm.dataset.rm; const f = U.form.files.find(x => x.id === id); U.form.files = U.form.files.filter(x => x.id !== id); if (f) U.form.removed.push(f); renderFormFiles(); return; }
+  const t = e.target.closest('[data-att]');
+  if (t) { const f = U.form.files.find(x => x.id === t.dataset.att); if (f) openAtt(f, null); }
+});
+$('#itFileIn').addEventListener('change', async e => {
+  const files = [...e.target.files]; e.target.value = '';
+  const form = U.form; if (!form) return;
+  for (const file of files) {
+    form.uploading.push(file.name); renderFormFiles();
+    try { const m = await uploadAttachment(file); form.files.push(m); form.added.push(m); }
+    catch(err) { toast('⚠ ' + err.message, 5000); }
+    form.uploading.splice(form.uploading.indexOf(file.name), 1);
+    if (U.form === form) renderFormFiles();
+  }
+});
 
 /* =========================================================
    Route
@@ -1592,8 +1938,10 @@ $('#rNone').onclick = () => { routePoints().forEach(p => U.wpOff.add(p.it.id)); 
    ========================================================= */
 function buildPrint(){
   const c = curCity(), items = cityItems(), b = badgeMap(items), withMemo = $('#pvMemo').checked;
-  $('#pvTitle').textContent = `${S.data.title} ― ${c.name}`;
-  $('#pvSub').textContent = `${items.length}か所　印刷日 ${new Date().toLocaleDateString('ja-JP')}`;
+  $('#pvTitle').textContent = `${curTrip().title} ― ${c.name}`;
+  $('#pvSub').dataset.period = fmtPeriod(curTrip());
+  const per = fmtPeriod(curTrip());
+  $('#pvSub').textContent = `${per ? per + '　' : ''}${items.length}か所　印刷日 ${new Date().toLocaleDateString('ja-JP')}`;
   $('#pvCityMemo').textContent = c.memo || '';
   $('#pvCityMemo').classList.toggle('hidden', !(withMemo && c.memo));
   $('#pvTable').innerHTML = `<thead><tr><th>No</th><th>訪問先</th><th>施設名・住所</th>${withMemo ? '<th>メモ</th>' : ''}</tr></thead><tbody>` +
@@ -1627,23 +1975,463 @@ $('#pvPrint').onclick = () => {
 };
 
 /* =========================================================
+   Trips (出張) — create / switch / edit / archive
+   ========================================================= */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let geoLast = 0;
+async function nominatim(q, extra){
+  const wait = 1100 - (Date.now() - geoLast); if (wait > 0) await sleep(wait);   // usage policy: max 1 req/s
+  geoLast = Date.now();
+  const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=en&q=${encodeURIComponent(q)}${extra || ''}`);
+  if (!r.ok) return null;
+  const j = await r.json(); if (!j.length) return null;
+  return { lat:+j[0].lat, lng:+j[0].lon, name:j[0].name || q, addr:j[0].display_name || '' };
+}
+async function geocodeCity(text){
+  const p = parseLoc(text);
+  const name = String(text).replace(/(-?\d{1,2}\.\d+)\s*[,，、\s]\s*(-?\d{1,3}\.\d+)/, '').trim() || text.trim();
+  if (p && !p.short) return { name, lat:p.lat, lng:p.lng, q:name };
+  try { const g = await nominatim(name); if (g) return { name, lat:g.lat, lng:g.lng, q:g.name }; } catch(e) {}
+  return null;
+}
+let TF = null;   // trip form state
+function openTrips(){
+  closeSheets();
+  showTripList();
+  openSheet('#shTrip');
+}
+function tripRow(t){
+  const cs = tripCities(t.id), n = tripItems(t.id).length;
+  const li = document.createElement('li');
+  if (t.id === curTrip().id) li.classList.add('on');
+  li.innerHTML = `<div class="tb"><div class="tt">${esc(t.title)}</div><div class="ts">${esc([fmtPeriod(t), cs.map(c => c.name).join('・'), n + 'か所'].filter(Boolean).join('　'))}</div></div><button class="btn sm">編集</button>`;
+  li.onclick = e => {
+    if (e.target.closest('button')) { editTrip(t.id); return; }
+    const c = cs[0]; if (!c) { editTrip(t.id); return; }
+    closeSheets(); if (c.id !== U.city) switchCity(c.id);
+    toast(t.title + ' を表示しています', 1800);
+  };
+  return li;
+}
+function showTripList(){
+  TF = null;
+  $('#trH').textContent = '🧳 出張'; $('#trListView').classList.remove('hidden'); $('#trFormView').classList.add('hidden'); $('#trFoot').classList.add('hidden');
+  const key = t => t.start || '0000';
+  const act = S.data.trips.filter(t => !t.arch).sort((a, b) => key(b).localeCompare(key(a)));
+  const arch = S.data.trips.filter(t => t.arch).sort((a, b) => key(b).localeCompare(key(a)));
+  const ul = $('#trList'); ul.innerHTML = ''; act.forEach(t => ul.appendChild(tripRow(t)));
+  const ua = $('#trArch'); ua.innerHTML = ''; arch.forEach(t => ua.appendChild(tripRow(t)));
+  $('#trArchN').textContent = arch.length ? `（${arch.length}）` : '（なし）';
+}
+function newTrip(){
+  TF = { id:null, cities:[] };
+  $('#trH').textContent = '🧳 新しい出張';
+  $('#tfTitle').value = ''; $('#tfStart').value = ''; $('#tfEnd').value = ''; $('#tfCityIn').value = '';
+  showTripForm();
+  setTimeout(() => $('#tfTitle').focus(), 50);
+}
+function editTrip(id){
+  const t = S.data.trips.find(x => x.id === id);
+  TF = { id, cities: tripCities(id).map(c => ({ id:c.id, name:c.name, lat:c.lat, lng:c.lng, q:c.q, n:cityItems(c.id).length })) };
+  $('#trH').textContent = '🧳 出張を編集';
+  $('#tfTitle').value = t.title; $('#tfStart').value = t.start; $('#tfEnd').value = t.end; $('#tfCityIn').value = '';
+  $('#tfArch').textContent = t.arch ? 'アーカイブから戻す' : 'アーカイブ';
+  $('#tfDel').textContent = '出張を削除'; $('#tfDel').dataset.armed = '';
+  showTripForm();
+}
+function showTripForm(){
+  $('#trListView').classList.add('hidden'); $('#trFormView').classList.remove('hidden'); $('#trFoot').classList.remove('hidden');
+  $('#tfEditOnly').classList.toggle('hidden', !TF.id);
+  renderTfCities();
+}
+function renderTfCities(){
+  const ul = $('#tfCities'); ul.innerHTML = '';
+  if (!TF.cities.length) ul.innerHTML = '<li class="hint" style="display:block">まだ都市がありません。下の欄から追加してください。</li>';
+  TF.cities.forEach((c, k) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<input type="text" value="${esc(c.name)}"><span class="cs">${c.n ? c.n + 'か所' : (c.lat != null ? '📍OK' : '')}</span>
+      <button class="btn sm" title="上へ" ${k ? '' : 'disabled'}>▲</button><button class="btn sm dng" title="削除">✕</button>`;
+    const [inp] = li.getElementsByTagName('input'), [up, rm] = li.getElementsByTagName('button');
+    inp.oninput = () => { c.name = inp.value; };
+    up.onclick = () => { TF.cities.splice(k - 1, 0, TF.cities.splice(k, 1)[0]); renderTfCities(); };
+    rm.onclick = () => {
+      if (c.n && !rm.dataset.armed) { rm.dataset.armed = '1'; rm.textContent = `${c.n}件ごと削除?`; return; }
+      TF.cities.splice(k, 1); renderTfCities();
+    };
+    ul.appendChild(li);
+  });
+}
+async function tfAddCity(){
+  const v = $('#tfCityIn').value.trim(); if (!v) return;
+  const parts = v.split(/[、,，\n]/).map(x => x.trim()).filter(Boolean);
+  const list = parseLoc(v) ? [v] : parts;
+  $('#tfCityAdd').disabled = true;
+  for (const one of list) {
+    $('#tfCityAdd').textContent = '検索中…';
+    const g = await geocodeCity(one);
+    if (g) TF.cities.push({ id:null, name:g.name, lat:g.lat, lng:g.lng, q:g.q, n:0 });
+    else toast(`「${one}」の位置が見つかりません。「${one} 緯度,経度」の形で入力してください`, 5000);
+    renderTfCities();
+  }
+  $('#tfCityAdd').disabled = false; $('#tfCityAdd').textContent = '＋ 追加';
+  $('#tfCityIn').value = '';
+}
+$('#trNew').onclick = newTrip;
+$('#tfBack').onclick = showTripList;
+$('#tfCityAdd').onclick = tfAddCity;
+$('#tfCityIn').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); tfAddCity(); } });
+$('#tfSave').onclick = async () => {
+  if ($('#tfCityIn').value.trim()) await tfAddCity();
+  const title = $('#tfTitle').value.trim();
+  if (!title) { toast('出張名を入力してください'); return; }
+  if (!TF.cities.length) { toast('都市を1つ以上追加してください'); return; }
+  const now = Date.now();
+  let t = TF.id && S.data.trips.find(x => x.id === TF.id);
+  if (!t) { t = { id:uid(), arch:false }; S.data.trips.push(t); }
+  Object.assign(t, { title, start:$('#tfStart').value, end:$('#tfEnd').value, u:now });
+  // cities: update / add / delete, keep the order shown in the form
+  const keep = new Set(TF.cities.filter(c => c.id).map(c => c.id));
+  tripCities(t.id).forEach(c => {
+    if (keep.has(c.id)) return;
+    S.data.cdel[c.id] = now;
+    cityItems(c.id).forEach(i => { S.data.del[i.id] = now; (i.files || []).forEach(f => { S.data.fdel[f.id] = now; ghDeleteFile(f.p); if (f.tp) ghDeleteFile(f.tp); }); });
+    S.data.items = S.data.items.filter(i => i.city !== c.id);
+  });
+  const others = S.data.cities.filter(c => c.trip !== t.id);
+  const mine = TF.cities.map(fc => {
+    let c = fc.id && S.data.cities.find(x => x.id === fc.id);
+    if (!c) c = { id:uid(), trip:t.id, lat:fc.lat, lng:fc.lng, zoom:13, memo:'', q:fc.q || fc.name };
+    if (c.name !== fc.name.trim()) { c.name = fc.name.trim() || c.name; }
+    c.u = now; return c;
+  });
+  S.data.cities = others.concat(mine);
+  const first = mine[0];
+  closeSheets();
+  changed();
+  if (!mine.find(c => c.id === U.city)) switchCity(first.id); else renderAll();
+  toast(TF && TF.id ? '保存しました' : `「${title}」を作成しました`);
+};
+$('#tfArch').onclick = () => {
+  const t = S.data.trips.find(x => x.id === TF.id); if (!t) return;
+  t.arch = !t.arch; t.u = Date.now(); changed();
+  if (t.arch && t.id === curTrip().id) { const nxt = S.data.trips.find(x => !x.arch && tripCities(x.id).length); if (nxt) switchCity(tripCities(nxt.id)[0].id); }
+  showTripList(); toast(t.arch ? 'アーカイブしました' : '戻しました');
+};
+$('#tfDel').onclick = () => {
+  const b = $('#tfDel');
+  if (S.data.trips.length < 2) { toast('最後の出張は削除できません'); return; }
+  const t = S.data.trips.find(x => x.id === TF.id); if (!t) return;
+  const n = tripItems(t.id).length;
+  if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = `${n}か所ごと削除しますか？もう一度押すと削除`; return; }
+  const now = Date.now();
+  tripCities(t.id).forEach(c => {
+    S.data.cdel[c.id] = now;
+    cityItems(c.id).forEach(i => { S.data.del[i.id] = now; (i.files || []).forEach(f => { S.data.fdel[f.id] = now; ghDeleteFile(f.p); if (f.tp) ghDeleteFile(f.tp); }); });
+  });
+  const cids = new Set(tripCities(t.id).map(c => c.id));
+  S.data.items = S.data.items.filter(i => !cids.has(i.city));
+  S.data.cities = S.data.cities.filter(c => c.trip !== t.id);
+  S.data.tdel[t.id] = now; S.data.trips = S.data.trips.filter(x => x !== t);
+  const nxt = S.data.trips.find(x => !x.arch && tripCities(x.id).length) || S.data.trips[0];
+  changed();
+  switchCity(tripCities(nxt.id)[0].id);
+  toast('削除しました');
+};
+$('#tfImport').onclick = () => { const id = TF.id; openImport(id); };
+
+/* =========================================================
+   Bulk import: Excel (.xlsx) / CSV / TSV (paste) / KML・KMZ
+   — parsed entirely in the browser, no external library
+   ========================================================= */
+async function unzip(buf){
+  const u = new Uint8Array(buf), dv = new DataView(buf), out = {};
+  let e = u.length - 22; while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+  if (e < 0) throw new Error('ZIP形式ではありません');
+  const n = dv.getUint16(e + 10, true); let p = dv.getUint32(e + 16, true);
+  for (let k = 0; k < n; k++) {
+    const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true);
+    const fnl = dv.getUint16(p + 28, true), exl = dv.getUint16(p + 30, true), cml = dv.getUint16(p + 32, true), lho = dv.getUint32(p + 42, true);
+    const name = new TextDecoder().decode(u.subarray(p + 46, p + 46 + fnl));
+    const lfn = dv.getUint16(lho + 26, true), lex = dv.getUint16(lho + 28, true);
+    const data = u.subarray(lho + 30 + lfn + lex, lho + 30 + lfn + lex + csize);
+    out[name] = { method, data };
+    p += 46 + fnl + exl + cml;
+  }
+  return {
+    has: nm => !!out[nm],
+    names: () => Object.keys(out),
+    async text(nm){
+      const f = out[nm]; if (!f) return null;
+      if (f.method === 0) return new TextDecoder().decode(f.data);
+      if (f.method !== 8) throw new Error('未対応の圧縮形式');
+      const ds = new Blob([f.data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      return new TextDecoder().decode(await new Response(ds).arrayBuffer());
+    }
+  };
+}
+const xmlDoc = t => new DOMParser().parseFromString(t, 'application/xml');
+const byTag = (el, tag) => [...el.getElementsByTagName(tag)];
+async function parseXlsx(buf){
+  const z = await unzip(buf);
+  const wb = xmlDoc(await z.text('xl/workbook.xml'));
+  const sheet = byTag(wb, 'sheet')[0];
+  let path = 'xl/worksheets/sheet1.xml';
+  if (sheet) {
+    const rid = sheet.getAttribute('r:id') || sheet.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
+    const rels = z.has('xl/_rels/workbook.xml.rels') ? xmlDoc(await z.text('xl/_rels/workbook.xml.rels')) : null;
+    const rel = rels && byTag(rels, 'Relationship').find(r => r.getAttribute('Id') === rid);
+    if (rel) { const t = rel.getAttribute('Target'); path = t.startsWith('/') ? t.slice(1) : 'xl/' + t.replace(/^\.\//, ''); }
+  }
+  const ss = z.has('xl/sharedStrings.xml') ? byTag(xmlDoc(await z.text('xl/sharedStrings.xml')), 'si').map(si => byTag(si, 't').map(t => t.textContent).join('')) : [];
+  const sh = xmlDoc(await z.text(path));
+  const rows = [];
+  byTag(sh, 'row').forEach(r => {
+    const ri = (+r.getAttribute('r') || rows.length + 1) - 1, row = [];
+    byTag(r, 'c').forEach((c, k) => {
+      const ref = c.getAttribute('r') || '';
+      const col = ref ? ref.replace(/\d+/g, '').split('').reduce((a, ch) => a * 26 + ch.charCodeAt(0) - 64, 0) - 1 : k;
+      const t = c.getAttribute('t'), v = byTag(c, 'v')[0];
+      let val = '';
+      if (t === 's') val = ss[+(v && v.textContent)] || '';
+      else if (t === 'inlineStr') val = byTag(c, 't').map(x => x.textContent).join('');
+      else if (t === 'b') val = v && v.textContent === '1' ? 'TRUE' : 'FALSE';
+      else val = v ? v.textContent : '';
+      row[col] = val;
+    });
+    rows[ri] = Array.from(row, x => x == null ? '' : String(x));
+  });
+  return Array.from(rows, r => r || []);
+}
+function parseDelimited(text){
+  text = text.replace(/^﻿/, '');
+  const first = text.split(/\r?\n/)[0] || '';
+  const sep = (first.match(/\t/g) || []).length >= (first.match(/,/g) || []).length && first.includes('\t') ? '\t' : ',';
+  const rows = []; let row = [], cell = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) { if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += ch; continue; }
+    if (ch === '"' && cell === '') { q = true; continue; }
+    if (ch === sep) { row.push(cell); cell = ''; continue; }
+    if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; continue; }
+    cell += ch;
+  }
+  if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+  return rows;
+}
+async function parseKml(text){
+  const d = xmlDoc(text), out = [];
+  byTag(d, 'Placemark').forEach(pm => {
+    const pt = byTag(pm, 'Point')[0], co = pt && byTag(pt, 'coordinates')[0];
+    if (!co) return;
+    const [lng, lat] = co.textContent.trim().split(/[\s,]+/).map(Number);
+    if (!isFinite(lat) || !isFinite(lng)) return;
+    const nm = (byTag(pm, 'name')[0] || {}).textContent || '';
+    const raw = (byTag(pm, 'description')[0] || {}).textContent || '';
+    const desc = raw.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+    let folder = '', p = pm.parentNode;
+    while (p && p.nodeName !== 'Document') { if (p.nodeName === 'Folder') { const f = [...p.children].find(x => x.nodeName === 'name'); folder = f ? f.textContent : ''; break; } p = p.parentNode; }
+    out.push({ city:folder, name:nm.trim(), label:'', addr:'', lat, lng, memo:desc, cat:'', url:'' });
+  });
+  return out;
+}
+const COLS = {
+  city:  ['都市','都市名','city','エリア','area','場所'],
+  cat:   ['区分','種類','種別','カテゴリ','カテゴリー','category','type'],
+  label: ['訪問先名','訪問先','表示名','会社名','label','visit'],
+  name:  ['施設名','名称','建物名','スポット名','name','title','place','タイトル'],
+  addr:  ['住所','所在地','address'],
+  lat:   ['緯度','lat','latitude'],
+  lng:   ['経度','lng','lon','long','longitude'],
+  ll:    ['座標','緯度経度','位置','coordinates','latlng','location'],
+  url:   ['googleマップurl','googlemapsurl','googleマップ','url','リンク','link','map'],
+  memo:  ['メモ','memo','note','notes','備考','comment','コメント','説明','description']
+};
+const normH = h => String(h || '').toLowerCase().replace(/[\s_\-（）()［］\[\]：:・]/g, '');
+function rowsToRecords(rows){
+  rows = rows.filter(r => r && r.some(c => String(c || '').trim()));
+  if (!rows.length) throw new Error('データがありません');
+  const head = rows[0].map(normH), map = {};
+  Object.entries(COLS).forEach(([k, al]) => {
+    const alN = al.map(normH);
+    let ix = head.findIndex(h => alN.includes(h));
+    if (ix < 0) ix = head.findIndex(h => h && alN.some(a => a.length >= 2 && h.includes(a)));
+    if (ix >= 0 && !Object.values(map).includes(ix)) map[k] = ix;
+  });
+  if (map.name == null && map.label == null && map.addr == null) throw new Error('1行目に見出し（施設名・訪問先名・住所など）が見つかりません。テンプレートの形式を使ってください');
+  const g = (r, k) => map[k] == null ? '' : String(r[map[k]] == null ? '' : r[map[k]]).trim();
+  return rows.slice(1).map(r => ({ city:g(r,'city'), cat:g(r,'cat'), label:g(r,'label'), name:g(r,'name'), addr:g(r,'addr'), lat:g(r,'lat'), lng:g(r,'lng'), ll:g(r,'ll'), url:g(r,'url'), memo:g(r,'memo') }))
+    .filter(x => x.name || x.label || x.addr);
+}
+function mapCat(v){
+  v = String(v || '').toLowerCase();
+  if (!v) return 'visit';
+  if (/ホテル|宿|hotel|stay/.test(v)) return 'hotel';
+  if (/空港|駅|airport|station|港/.test(v)) return 'airport';
+  if (/視察|食事|飲食|レストラン|市場|観光|sight|food|meal|lunch|dinner|カフェ/.test(v)) return 'sight';
+  if (/その他|other|★/.test(v)) return 'other';
+  return 'visit';
+}
+function resolvePos(x){
+  if (typeof x.lat === 'number' && typeof x.lng === 'number') return { lat:x.lat, lng:x.lng };
+  const la = parseFloat(String(x.lat).replace(',', '.')), lo = parseFloat(String(x.lng).replace(',', '.'));
+  if (isFinite(la) && isFinite(lo) && Math.abs(la) <= 90 && Math.abs(lo) <= 180 && (la || lo)) return { lat:la, lng:lo };
+  for (const t of [x.ll, x.url]) { const p = parseLoc(t); if (p && !p.short) return { lat:p.lat, lng:p.lng, name:p.name, url:/^https?:/.test(t) ? t : '' }; }
+  return null;
+}
+let IMP = null;
+function openImport(tripId){
+  closeSheets();
+  IMP = { tripId: tripId || curTrip().id, recs: [] };
+  $('#impStart').classList.remove('hidden'); $('#impPrev').classList.add('hidden'); $('#impFoot').classList.add('hidden');
+  $('#impPaste').value = '';
+  openSheet('#shImp');
+}
+async function impLoad(kind, payload, fname){
+  try {
+    let recs;
+    if (kind === 'text') recs = rowsToRecords(parseDelimited(payload));
+    else {
+      const nm = (fname || '').toLowerCase();
+      if (nm.endsWith('.xlsx') || nm.endsWith('.xlsm')) recs = rowsToRecords(await parseXlsx(payload));
+      else if (nm.endsWith('.kmz')) { const z = await unzip(payload); const k = z.names().find(n => n.toLowerCase().endsWith('.kml')); recs = await parseKml(await z.text(k)); }
+      else if (nm.endsWith('.kml')) recs = await parseKml(new TextDecoder().decode(payload));
+      else if (nm.endsWith('.xls')) throw new Error('古いExcel形式（.xls）には対応していません。「.xlsx」で保存し直してください');
+      else { let t = new TextDecoder('utf-8', {fatal:true}); let txt; try { txt = t.decode(payload); } catch(e) { txt = new TextDecoder('shift_jis').decode(payload); } recs = rowsToRecords(parseDelimited(txt)); }
+    }
+    if (!recs.length) throw new Error('取り込める行がありません');
+    IMP.recs = recs.map(r => ({ ...r, pos: resolvePos(r), catK: mapCat(r.cat) }));
+    showImpPreview();
+  } catch(e) { toast('⚠ ' + e.message, 6000); }
+}
+function impTargetCities(){ return tripCities(IMP.tripId); }
+function showImpPreview(){
+  $('#impStart').classList.add('hidden'); $('#impPrev').classList.remove('hidden'); $('#impFoot').classList.remove('hidden');
+  const ts = S.data.trips.filter(t => !t.arch || t.id === IMP.tripId);
+  $('#impTrip').innerHTML = ts.map(t => `<option value="${t.id}">${esc(t.title)}</option>`).join('');
+  $('#impTrip').value = IMP.tripId;
+  fillImpCityDef();
+  renderImpTable();
+}
+function fillImpCityDef(){
+  const cs = impTargetCities();
+  $('#impCityDef').innerHTML = cs.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  if (cs.find(c => c.id === U.city)) $('#impCityDef').value = U.city;
+}
+const normN = v => String(v || '').toLowerCase().replace(/\s+/g, '');
+function impPlan(){
+  const cs = impTargetCities(), def = $('#impCityDef').value, skip = $('#impSkipDup').checked;
+  const seen = new Set();
+  return IMP.recs.map(r => {
+    const cityName = r.city.trim();
+    const city = cityName ? cs.find(c => normN(c.name) === normN(cityName) || normN(c.q) === normN(cityName)) : cs.find(c => c.id === def);
+    const key = normN(r.label || r.name), ck = (city ? city.id : 'new:' + normN(cityName)) + '|' + key;
+    let dup = skip && seen.has(ck);
+    if (!dup && city && skip) dup = S.data.items.some(i => i.city === city.id && (normN(i.label || i.name) === key || (r.name && normN(i.name) === normN(r.name))));
+    seen.add(ck);
+    return { r, city, newCity: !city ? (cityName || null) : null, dup };
+  });
+}
+function renderImpTable(){
+  const plan = impPlan(), geo = $('#impGeo').checked;
+  let nOk = 0, nQ = 0, nNg = 0, nDup = 0;
+  const newCities = new Set();
+  const rows = plan.map(({ r, city, newCity, dup }) => {
+    let st;
+    if (dup) { st = '<span class="st-dup">重複・スキップ</span>'; nDup++; }
+    else if (r.pos) { st = '<span class="st-ok">✅ 位置あり</span>'; nOk++; }
+    else if (geo) { st = '<span class="st-q">🔎 自動で検索</span>'; nQ++; }
+    else { st = '<span class="st-ng">位置なしで登録</span>'; nNg++; }
+    if (newCity) newCities.add(newCity);
+    return `<tr><td>${esc(city ? city.name : (newCity ? newCity + '（新規）' : ''))}</td><td>${esc(CATS[r.catK].name)}</td><td><b>${esc(r.label || r.name)}</b>${r.label && r.name ? `<div style="color:var(--sub)">${esc(r.name)}</div>` : ''}</td><td>${st}</td></tr>`;
+  }).join('');
+  $('#impTable').innerHTML = `<thead><tr><th>都市</th><th>区分</th><th>名前</th><th>位置</th></tr></thead><tbody>${rows}</tbody>`;
+  const total = plan.length - nDup;
+  $('#impSum').innerHTML = `取り込み ${total}件（位置あり ${nOk}・自動検索 ${nQ}${nNg ? '・位置なし ' + nNg : ''}）${nDup ? `／重複スキップ ${nDup}件` : ''}${newCities.size ? `<br>新しく作る都市：${esc([...newCities].join('、'))}` : ''}${nQ ? `<br>自動検索は1件あたり約1秒かかります。見つかった位置は「位置要確認」になります。` : ''}`;
+  $('#impRun').disabled = !total;
+}
+['#impGeo','#impSkipDup','#impCityDef'].forEach(s0 => $(s0).addEventListener('change', renderImpTable));
+$('#impTrip').addEventListener('change', () => { IMP.tripId = $('#impTrip').value; fillImpCityDef(); renderImpTable(); });
+$('#impDrop').onclick = () => $('#impFile').click();
+['dragenter','dragover'].forEach(ev => $('#impDrop').addEventListener(ev, e => { e.preventDefault(); $('#impDrop').classList.add('over'); }));
+['dragleave','drop'].forEach(ev => $('#impDrop').addEventListener(ev, e => { e.preventDefault(); $('#impDrop').classList.remove('over'); }));
+$('#impDrop').addEventListener('drop', async e => { const f = e.dataTransfer.files[0]; if (f) impLoad('file', await f.arrayBuffer(), f.name); });
+$('#impFile').addEventListener('change', async e => { const f = e.target.files[0]; e.target.value = ''; if (f) impLoad('file', await f.arrayBuffer(), f.name); });
+$('#impPasteBtn').onclick = () => { const t = $('#impPaste').value; if (!t.trim()) { toast('貼り付けてください'); return; } impLoad('text', t); };
+$('#impBack').onclick = () => { $('#impStart').classList.remove('hidden'); $('#impPrev').classList.add('hidden'); $('#impFoot').classList.add('hidden'); };
+$('#impTpl').onclick = () => {
+  const rows = [
+    ['都市','区分','訪問先名','施設名','住所','緯度','経度','GoogleマップURL','メモ'],
+    ['ハノイ','訪問先','JETRO','Corner Stone Building','16 Phan Chu Trinh, Hoàn Kiếm, Hà Nội','21.0232','105.8567','','11/10 10:00 面談'],
+    ['ハノイ','ホテル','','Victor Metropolis Hotel','58 Hàng Gai, Hoàn Kiếm, Hà Nội','','','',''],
+    ['プノンペン','訪問先','（例）現地法人','','','','','https://www.google.com/maps/place/.../@11.5564,104.9282,17z','緯度経度が無くてもURLから位置を読み取ります']
+  ];
+  const csv = '﻿' + rows.map(r => r.map(c => /[",\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'})); a.download = '出張マップ_取り込みテンプレート.csv';
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+};
+$('#impRun').onclick = async () => {
+  const plan = impPlan().filter(p => !p.dup), geo = $('#impGeo').checked, btn = $('#impRun');
+  btn.disabled = true;
+  const now = Date.now(), tripId = IMP.tripId, created = {};
+  let done = 0, found = 0, miss = 0;
+  try {
+    // cities that do not exist yet in the trip
+    for (const p of plan) {
+      if (p.city || !p.newCity) continue;
+      const k = normN(p.newCity);
+      if (!created[k]) {
+        btn.textContent = `都市を検索中… ${p.newCity}`;
+        let g = await geocodeCity(p.newCity);
+        if (!g) { const withPos = plan.find(x => x.newCity && normN(x.newCity) === k && x.r.pos); const base = withPos ? withPos.r.pos : (impTargetCities()[0] || curCity()); g = { name:p.newCity, lat:base.lat, lng:base.lng, q:p.newCity }; }
+        created[k] = { id:uid(), trip:tripId, name:p.newCity, lat:g.lat, lng:g.lng, zoom:13, memo:'', q:g.q, u:now };
+        S.data.cities.push(created[k]);
+      }
+      p.city = created[k];
+    }
+    for (const p of plan) {
+      const r = p.r; let pos = r.pos, ok = !!pos;
+      if (!pos && geo) {
+        btn.textContent = `位置を検索中… ${done + 1}/${plan.length}`;
+        const q = [r.name || r.label, r.addr, p.city.q || p.city.name].filter(Boolean).join(', ');
+        try {
+          pos = await nominatim(q, `&viewbox=${p.city.lng - 0.6},${p.city.lat + 0.6},${p.city.lng + 0.6},${p.city.lat - 0.6}`);
+          if (!pos && r.addr) pos = await nominatim([r.addr, p.city.q || p.city.name].join(', '));
+        } catch(e) { pos = null; }
+        if (pos) found++; else miss++;
+        ok = false;
+      }
+      S.data.items.push({ id:uid(), city:p.city.id, cat:r.catK, label:r.label, name:r.name || (pos && pos.name) || '', addr:r.addr, memo:r.memo,
+        lat:pos ? pos.lat : null, lng:pos ? pos.lng : null, ok:!!(ok && pos), gurl:(r.pos && r.pos.url) || (/^https?:/.test(r.url) ? r.url : ''), files:[], u:now });
+      done++;
+    }
+    S.data.orderTs = now;
+    const firstCity = plan[0] && plan[0].city;
+    closeSheets();
+    changed();
+    if (firstCity && firstCity.id !== U.city) switchCity(firstCity.id); else { renderAll(); fitCity(true); }
+    toast(`${done}件を取り込みました${geo && (found || miss) ? `（自動検索：見つかった ${found}・見つからず ${miss}）` : ''}`, 5000);
+  } catch(e) { toast('⚠ 取り込みに失敗しました：' + e.message, 6000); }
+  finally { btn.disabled = false; btn.textContent = '取り込む'; }
+};
+
+/* =========================================================
    Settings
    ========================================================= */
 function openSettings(){
   closeSheets();
-  $('#sTitle').value = S.data.title;
   const c = repoCfg();
   $('#gOwner').value = c.owner || ''; $('#gRepo').value = c.repo || ''; $('#gBranch').value = c.branch; $('#gPath').value = c.path;
   $('#gToken').value = '';
   $('#gStat').textContent = S.localTok ? '✅ この端末専用のトークンで同期中' + (S.sharedTok ? '（共有トークンもあり）' : '')
     : S.sharedTok ? '✅ 共有トークンで同期中（パスワードを知っているメンバー全員が編集できます）'
     : '⚠ トークン未登録（変更はこの端末内にのみ保存されます）';
-  renderCityList();
+  renderCityUrls();
   openSheet('#shSet');
 }
 function renderCityUrls(){
   const ul = $('#cityUrls'); ul.innerHTML = '';
-  S.data.cities.forEach(c => {
+  tripCities().forEach(c => {
     const li = document.createElement('li');
     const url = cityUrl(c);
     li.innerHTML = `<span style="font-weight:700;white-space:nowrap">${esc(c.name)}</span>
@@ -1658,31 +2446,7 @@ function renderCityUrls(){
     ul.appendChild(li);
   });
 }
-function renderCityList(){
-  renderCityUrls();
-  const ul = $('#cityList'); ul.innerHTML = '';
-  S.data.cities.forEach(c => {
-    const li = document.createElement('li');
-    const n = cityItems(c.id).length;
-    li.innerHTML = `<input type="text" value="${esc(c.name)}" style="flex:1;min-width:0;border:1px solid var(--line);border-radius:7px;padding:5px 8px">
-      <span style="font-size:12px;color:var(--sub);white-space:nowrap">${n}件</span>
-      <button class="btn sm">名前変更</button><button class="btn sm dng" ${n || S.data.cities.length < 2 ? 'disabled' : ''}>削除</button>`;
-    const [inp] = li.getElementsByTagName('input'), [rn, del] = li.getElementsByTagName('button');
-    rn.onclick = () => { const v = inp.value.trim(); if (v) { c.name = v; c.u = Date.now(); changed(); toast('変更しました'); } };
-    del.onclick = () => { S.data.cdel[c.id] = Date.now(); S.data.cities = S.data.cities.filter(x => x !== c); if (U.city === c.id) U.city = S.data.cities[0].id; changed(); renderCityList(); };
-    ul.appendChild(li);
-  });
-}
 $('#bSettings').onclick = openSettings;
-$('#sTitleSave').onclick = () => { const v = $('#sTitle').value.trim(); if (v) { S.data.title = v; S.data.metaTs = Date.now(); changed(); toast('変更しました'); } };
-$('#newCityBtn').onclick = () => {
-  const name = $('#newCity').value.trim(), p = parseLoc($('#newCityPos').value);
-  if (!name) { toast('都市名を入力してください'); return; }
-  if (!p || p.short) { toast('中心座標を「緯度, 経度」で入力してください'); return; }
-  const c = { id:uid(), name, lat:p.lat, lng:p.lng, zoom:13, memo:'', u:Date.now() };
-  S.data.cities.push(c); $('#newCity').value = ''; $('#newCityPos').value = '';
-  changed(); renderCityList(); toast(name + ' を追加しました');
-};
 $('#gSave').onclick = async () => {
   const cfg = { owner:$('#gOwner').value.trim(), repo:$('#gRepo').value.trim(), branch:$('#gBranch').value.trim() || 'main', path:$('#gPath').value.trim() || 'data.enc.json' };
   LS.set('tm_repo', JSON.stringify(cfg));
@@ -1775,10 +2539,12 @@ document.addEventListener('click', e => {
   else if (a === 'menu') openMenu();
   else if (a === 'print') enterPrint();
   else if (a === 'settings') openSettings();
+  else if (a === 'trips') openTrips();
+  else if (a === 'import') openImport();
 });
 function openMenu(){
   closeSheets();
-  $('#menuTitle').textContent = S.data.title;
+  $('#menuTitle').textContent = curTrip().title;
   document.querySelectorAll('#menuDisp button').forEach(b => b.classList.toggle('on', b.dataset.v === curDisplay()));
   openSheet('#shMenu');
 }
